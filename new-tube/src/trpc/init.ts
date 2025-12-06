@@ -14,10 +14,7 @@ export const createTRPCContext = cache (async () => {
         clerkUserId : userId,
      };
 })
-
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
-
-
 
 const t = initTRPC.context<Context>().create({
     transformer : superjson,
@@ -26,9 +23,10 @@ const t = initTRPC.context<Context>().create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 export const baseProcedure = t.procedure;
+
 export const protectedProcedure = t.procedure.use(async function isAuthed(opts){
     const {ctx} = opts;
-
+    
     if(!ctx.clerkUserId){
         throw new TRPCError({ code : "UNAUTHORIZED", message : "Please logged in first" });
     }
@@ -40,8 +38,6 @@ export const protectedProcedure = t.procedure.use(async function isAuthed(opts){
     }
 
     const { success } = await ratelimit.limit(user.id)
-
-    console.log("success is ", success);
 
     if(!success){
         throw new TRPCError({ code : "TOO_MANY_REQUESTS"})

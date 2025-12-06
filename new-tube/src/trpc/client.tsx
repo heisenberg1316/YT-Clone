@@ -10,7 +10,6 @@ import type { AppRouter } from './routers/_app';
 import superjson from 'superjson';
 
 
-
 export const trpc = createTRPCReact<AppRouter>();
 let clientQueryClientSingleton: QueryClient;
 

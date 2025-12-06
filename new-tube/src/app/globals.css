@@ -3,6 +3,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ::-webkit-scrollbar-track-piece{
+  width: 2px;
+  height: 1px;
+
+} */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
