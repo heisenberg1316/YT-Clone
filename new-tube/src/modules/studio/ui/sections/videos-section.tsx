@@ -120,7 +120,7 @@ export const VideosSectionSuspense = () => {
 
                                         <div className="flex flex-col flex-1 max-w-[300px] overflow-hidden gap-y-1">
                                             <p className="text-sm truncate">{video.title}</p>
-                                            <span className="text-xs text-muted-foreground line-clamp-1">{video.description || "No description"}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{video.description || "No description"}</span>
                                         </div>
                                     </div>
                                 </TableCell>

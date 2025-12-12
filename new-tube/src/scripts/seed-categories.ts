@@ -2,13 +2,13 @@ import { db } from "@/db"
 import { categories } from "@/db/schema"
 
 const categoryNames = [
-    "Cars and vechicles",
+    "Cars and vehicles",
     "Comedy",
     "Education",
     "Gaming", 
     "Entertainment",
     "Film and animation",
-    "how-to and style",
+    "How-to & style",
     "Music",
     "News and politics",
     "People and blogs",
@@ -16,6 +16,7 @@ const categoryNames = [
     "Science and technology",
     "Sports",
     "Travel and events",
+    "Others"
 ]
 
 async function main() {
