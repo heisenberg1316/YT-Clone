@@ -46,7 +46,8 @@ const StudioSidebarHeader = () => {
                 <UserAvatar
                 imageUrl={user?.imageUrl}
                 name={user?.fullName ?? "User"}
-                className={`${avatarSizeClass} rounded-full transition-all duration-450  hover:opacity-70`}
+                size={`${state != "collapsed" ? "xl" : "sm"}`}
+                className="rounded-full transition-all duration-450  hover:opacity-70"
                 />
             </Link>
             </SidebarMenuButton>

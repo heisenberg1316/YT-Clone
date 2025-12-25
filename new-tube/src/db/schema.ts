@@ -3,6 +3,8 @@ import { integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "dr
 
 import { createInsertSchema, createUpdateSchema, createSelectSchema } from "drizzle-zod";
 
+
+// TODO : add limit for using ai services per user per day
 export const users = pgTable("users", {
     id: uuid("id").primaryKey().defaultRandom(),
     clerkId: text("clerk_id").unique().notNull(),
@@ -29,11 +31,24 @@ export const videoVisibilty = pgEnum("video_visibility", [
     "public",
 ])
 
+export const aiTitleStatusEnum = pgEnum("ai_title_status", [
+  "idle",
+  "pending",
+]);
+
+export const aiDescriptionStatusEnum = pgEnum("ai_description_status", [
+  "idle",
+  "pending",
+]);
+
+
 
 export const videos = pgTable("videos", {
     id : uuid("id").primaryKey().defaultRandom(),
     title : text("title").notNull(),
+    aiTitleStatus : aiTitleStatusEnum("ai_title_status").default("idle").notNull(),
     description : text("description"),
+    aiDescriptionStatus : aiDescriptionStatusEnum("ai_description_status").default("idle").notNull(),
     muxUploadId : text("mux_upload_id").unique(),
     muxStatus : text("mux_status"),
     muxAssetId : text("mux_asset_id").unique(),
@@ -41,7 +56,9 @@ export const videos = pgTable("videos", {
     muxTrackId : text("mux_track_id").unique(),
     muxTrackStatus : text("mux_track_status"),
     thumbnailUrl: text("thumbnail_url"), 
+    thumbnailKey : text("thumbnail_key"),
     previewUrl : text("preview_url"),
+    previewKey : text("preview_key"),
     duration : integer("duration").default(0).notNull(),
     visibility : videoVisibilty("visibility").default("private").notNull(),
     userId : uuid("user_id").references(() => users.id, {

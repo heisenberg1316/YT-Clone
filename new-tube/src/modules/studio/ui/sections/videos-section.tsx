@@ -14,7 +14,7 @@ import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 
-const VideosSectionSkeleton = () => {
+export const VideosSectionSkeleton = () => {
     return (
         <>
             <div className="border-y">

@@ -10,7 +10,7 @@ export const studioRouter = createTRPCRouter({
     getOne : protectedProcedure
         .input(
             z.object({
-                id : z.uuid()
+                id : z.uuid(),
             })
         )
         .query(async ({ ctx, input}) => {

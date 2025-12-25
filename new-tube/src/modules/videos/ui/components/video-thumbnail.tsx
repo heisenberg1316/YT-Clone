@@ -1,5 +1,6 @@
 import { formatDuration } from "@/lib/utils";
 import Image from "next/image";
+import { THUMBNAIL_FALLBACK } from "../../constants";
 
 interface VideoThumbnailProps {
   title: string;
@@ -15,7 +16,7 @@ export const VideoThumbnail = ({ title, imageUrl, previewUrl, duration }: VideoT
         
           {/* Default thumbnail */}
           <Image
-              src={imageUrl ?? "/placeholder.svg"}
+              src={imageUrl ?? THUMBNAIL_FALLBACK}
               alt={title}
               fill
               sizes="(max-width: 300px)"
@@ -25,7 +26,7 @@ export const VideoThumbnail = ({ title, imageUrl, previewUrl, duration }: VideoT
           {/* Preview Gif */}
           <Image
               unoptimized={!!previewUrl}
-              src={previewUrl ?? "/placeholder.svg"}
+              src={previewUrl ?? THUMBNAIL_FALLBACK}
               alt={title}
               fill
               sizes="(max-width: 300px)"

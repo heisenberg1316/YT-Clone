@@ -35,8 +35,11 @@ export const StudioUploadModal = () => {
         if(!create.data?.video.id) return;
 
         create.reset();
+        sessionStorage.setItem('fromStudioVideoUpload', '1'); //it's like a flag
         router.push(`/studio/videos/${create.data.video.id}`);
-    }
+    } 
+
+    
 
     return (
         <>

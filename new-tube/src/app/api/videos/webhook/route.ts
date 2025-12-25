@@ -95,16 +95,17 @@ export const POST = async (request : Request) => {
             break;
         }
 
-        case "video.asset.deleted" : {
+        case "video.asset.deleted": {
             const data = payload.data as VideoAssetDeletedWebhookEvent["data"];
+            console.log("hello from deleting");
 
-            
-
-            if(!data.upload_id){
-                return new Response("Missing upload ID", { status : 400 });
+            if (!data.id) {
+                return new Response("Missing asset ID", { status: 400 });
             }
 
-            await db.delete(videos).where(eq(videos.muxUploadId, data.upload_id));
+            await db
+                .delete(videos)
+                .where(eq(videos.muxAssetId, data.id));
 
             break;
         }
