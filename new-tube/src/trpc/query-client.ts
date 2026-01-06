@@ -6,6 +6,10 @@ export function makeQueryClient() {
     defaultOptions: {
       queries: {
         staleTime: 30 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: false,
+        retry: 1,
       },
       dehydrate: {
         serializeData: superjson.serialize,

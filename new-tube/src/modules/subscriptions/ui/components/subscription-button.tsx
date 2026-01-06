@@ -26,7 +26,7 @@ const SubscriptionButton = ({
             variant={isSubscribed ? "secondary" : "default"}
             onClick={onClick}
             disabled={disabled}
-            className={cn("rounded-full", className)}
+            className={cn("rounded-full", className, `${isSubscribed ? "hover:bg-gray-300" : "hover:bg-gray-600"}`)}
         >
             {isSubscribed ? "Unsubscribe" : "Subscribe"}
         </Button>
