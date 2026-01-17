@@ -5,7 +5,6 @@ import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 
 export async function POST(req: NextRequest) {
-    console.log("in post request");
     try {
         const evt = await verifyWebhook(req)
 

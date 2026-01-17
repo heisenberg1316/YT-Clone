@@ -1,25 +1,25 @@
 import { db } from "@/db";
-import { videoReactions } from "@/db/schema";
+import { commentReactions, videoReactions } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { and, eq } from "drizzle-orm";
 import z from "zod";
 
 
-export const videoReactionsRouter = createTRPCRouter({
+export const commentReactionsRouter = createTRPCRouter({
     like: protectedProcedure
-        .input(z.object({ videoId: z.uuid() }))
+        .input(z.object({ commentId: z.uuid() }))
         .mutation(async ({ input, ctx }) => {
-            const { videoId } = input;
+            const { commentId } = input;
             const userId = ctx.user.id;
 
             // Try delete first
             const deleted = await db
-                .delete(videoReactions)
+                .delete(commentReactions)
                 .where(
                     and(
-                        eq(videoReactions.userId, userId),
-                        eq(videoReactions.videoId, videoId),
-                        eq(videoReactions.type, "like")
+                        eq(commentReactions.userId, userId),
+                        eq(commentReactions.commentId, commentId),
+                        eq(commentReactions.type, "like")
                     )
                 );
 
@@ -30,10 +30,10 @@ export const videoReactionsRouter = createTRPCRouter({
 
             // Otherwise upsert like
             await db
-            .insert(videoReactions)
-            .values({ userId, videoId, type: "like" })
+            .insert(commentReactions)
+            .values({ userId, commentId, type: "like" })
             .onConflictDoUpdate({
-                target: [videoReactions.userId, videoReactions.videoId],
+                target: [commentReactions.userId, commentReactions.commentId],
                 set: { type: "like" },
             });
 
@@ -42,19 +42,19 @@ export const videoReactionsRouter = createTRPCRouter({
 
 
    dislike: protectedProcedure
-        .input(z.object({ videoId: z.uuid() }))
+        .input(z.object({ commentId: z.uuid() }))
         .mutation(async ({ input, ctx }) => {
-            const { videoId } = input;
+            const { commentId } = input;
             const userId = ctx.user.id;
 
             // Try delete first (toggle off dislike)
             const deleted = await db
-                .delete(videoReactions)
+                .delete(commentReactions)
                 .where(
                     and(
-                        eq(videoReactions.userId, userId),
-                        eq(videoReactions.videoId, videoId),
-                        eq(videoReactions.type, "dislike")
+                        eq(commentReactions.userId, userId),
+                        eq(commentReactions.commentId, commentId),
+                        eq(commentReactions.type, "dislike")
                     )   
                 );
 
@@ -65,10 +65,10 @@ export const videoReactionsRouter = createTRPCRouter({
 
             // Otherwise upsert dislike (also converts like → dislike)
             await db
-            .insert(videoReactions)
-            .values({ userId, videoId, type: "dislike" })
+            .insert(commentReactions)
+            .values({ userId, commentId, type: "dislike" })
             .onConflictDoUpdate({
-                target: [videoReactions.userId, videoReactions.videoId],
+                target: [commentReactions.userId, commentReactions.commentId],
                 set: { type: "dislike" },
             });
 

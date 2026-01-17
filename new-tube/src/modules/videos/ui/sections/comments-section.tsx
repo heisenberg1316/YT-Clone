@@ -1,7 +1,11 @@
 "use client";
 
+import { InfiniteScroll } from "@/components/infinite-scroll";
+import { DEFAULT_LIMIT } from "@/constants";
 import CommentForm from "@/modules/comments/ui/components/comment-form";
+import CommentItem from "@/modules/comments/ui/components/comment-item";
 import { trpc } from "@/trpc/client";
+import { Loader2Icon } from "lucide-react";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
@@ -11,7 +15,7 @@ interface CommentsSectionProps{
 
 export const CommentsSection = ({ videoId } : CommentsSectionProps) => {
     return (
-        <Suspense fallback={<p>Loading...</p>}>
+        <Suspense fallback={<CommentSectionSkeleton />}>
             <ErrorBoundary fallback={<p>error...</p>}>
                 <CommentsSectionSuspense videoId={videoId} />
             </ErrorBoundary>
@@ -19,25 +23,39 @@ export const CommentsSection = ({ videoId } : CommentsSectionProps) => {
     )
 }
 
+const CommentSectionSkeleton = () => {
+    return (
+        <div className="mt-6 flex justify-center items-center">
+            <Loader2Icon className="text-muted-foreground size-7 animate-spin"/>
+        </div>
+    )
+}
+
 const CommentsSectionSuspense = ({ videoId } : CommentsSectionProps) => {
 
-    const [comments] = trpc.comments.getMany.useSuspenseQuery({ videoId });
+    const [comments, query] = trpc.comments.getMany.useSuspenseInfiniteQuery({ videoId, limit : DEFAULT_LIMIT }, {
+        getNextPageParam : (lastPage) => lastPage.nextCursor,
+    });
+
+    const [totalComments] = trpc.comments.getTotal.useSuspenseQuery({ videoId });
     
     return (
-      <div className="mt-6">
-          <div className="flex flex-col gap-6">
-              <h1>
-                0 comments
-              </h1>
-              <CommentForm videoId={videoId} />
+        <div className="mt-6">
+            <div className="flex flex-col gap-6">
+                <h1 className="text-xl font-semibold">
+                   {totalComments.count} comments
+                </h1>
+                <CommentForm videoId={videoId} />
+                <div className="flex flex-col gap-4 mt-2 ">
+                    {
+                        comments.pages.flatMap((page) => page.items).map((comment) => (
+                            <CommentItem key={comment.id} comment={comment}/>
+                        ))
+                    }
+                    <InfiniteScroll hasNextPage={query.hasNextPage} isFetchingNextPage={query.isFetchingNextPage} fetchNextPage={query.fetchNextPage}/>
+                </div>
+            </div>
         </div>
-            {/* {JSON.stringify(comments)} */}
-            {comments.map((cmt) => (
-                <>
-                    <h1>{cmt.value}</h1>
-                </>
-            ))}
-      </div>
     )
 }
 

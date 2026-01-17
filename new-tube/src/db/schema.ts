@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { foreignKey, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { createInsertSchema, createUpdateSchema, createSelectSchema } from "drizzle-zod";
 
@@ -89,6 +89,7 @@ export const userRelations = relations(users, ({ many }) => ({
         relationName : "subscriptions_creator_id_fkey"
     }),
     comments : many(comments),
+    commentReactions : many(commentReactions),
 }))
 
 export const subscriptions = pgTable("subscription", {
@@ -151,11 +152,11 @@ export const videoViews =  pgTable("video_views", {
 ]);
 
 export const videoViewRelations = relations(videoViews, ({ one }) => ({
-    users : one(users, {
+    user : one(users, {
         fields : [videoViews.userId],
         references : [users.id],
     }),
-    videos : one(videos, {
+    video : one(videos, {
         fields : [videoViews.videoId],
         references : [videos.id],
     })
@@ -181,11 +182,11 @@ export const videoReactions =  pgTable("video_reactions", {
 ]);
 
 export const videoReactionRelations = relations(videoReactions, ({ one }) => ({
-    users : one(users, {
+    user : one(users, {
         fields : [videoReactions.userId],
         references : [users.id],
     }),
-    videos : one(videos, {
+    video : one(videos, {
         fields : [videoReactions.videoId],
         references : [videos.id],
     })
@@ -198,15 +199,22 @@ export const videoReactionSelectSchema = createSelectSchema(videoReactions);
 
 export const comments = pgTable("comments", {
     id : uuid("id").primaryKey().defaultRandom(),
+    parentId : uuid("parent_id"),
     userId : uuid("user_id").references(() => users.id, { onDelete : "cascade"}).notNull(),
     videoId : uuid("video_id").references(() => videos.id, { onDelete : "cascade"}).notNull(),
     value : text("value").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+}, (t) => [
+    foreignKey({
+        columns : [t.parentId],
+        foreignColumns : [t.id],
+        name : "comments_parent_id_fkey",
+    }).onDelete("cascade")
+])
 
 
-export const commentRelations = relations(comments, ({ one }) => ({
+export const commentRelations = relations(comments, ({ one, many }) => ({
     user : one(users, {
         fields : [comments.userId],
         references : [users.id],
@@ -214,9 +222,43 @@ export const commentRelations = relations(comments, ({ one }) => ({
     video : one(videos,{
         fields : [comments.videoId],
         references : [videos.id],
-    })
+    }),
+    reactions : many(commentReactions),
+    parent : one(comments,{
+        fields : [comments.parentId],
+        references : [comments.id],
+        relationName : "comments_parent_id_fkey",
+    }),
+    replies : many(comments, {
+        relationName : "comments_parent_id_fkey",
+    }),
 }))
 
 export const commentInsertSchema = createInsertSchema(comments);
 export const commentUpdateSchema = createUpdateSchema(comments);
 export const commentSelectSchema = createSelectSchema(comments);
+
+
+export const commentReactions =  pgTable("comment_reactions", {
+    userId : uuid("user_id").references(() => users.id, { onDelete : "cascade"}).notNull(),
+    commentId : uuid("video_id").references(() => comments.id, { onDelete : "cascade"}).notNull(),
+    type : reactionType("type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+    primaryKey({
+        name : "comment_reactions_pk",
+        columns : [t.userId, t.commentId],
+    })
+]);
+ 
+export const commentReactionRelations = relations(commentReactions, ({ one }) => ({
+    user : one(users, {
+        fields : [commentReactions.userId],
+        references : [users.id],
+    }),
+    comment : one(comments, {
+        fields : [commentReactions.commentId],
+        references : [comments.id],
+    })
+}))
