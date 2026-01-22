@@ -4,6 +4,13 @@ import { verifyWebhook } from '@clerk/nextjs/webhooks'
 import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 
+export function usernameFromEmail(email: string) {
+    return email
+        .split("@")[0]       
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, ""); // sanitize
+}
+
 export async function POST(req: NextRequest) {
     try {
         const evt = await verifyWebhook(req)
@@ -12,14 +19,21 @@ export async function POST(req: NextRequest) {
         // For this guide, log payload to console
         const data = evt.data
         const eventType = evt.type
+        
         console.log(`Received webhook with ID ${data.id} and event type of ${eventType}`)
         console.log('Webhook payload:', evt.data)
-
+        
         if(eventType === "user.created"){
             console.log("user created");
             const { data } = evt;
+            const email = data.email_addresses?.[0]?.email_address;
+            let username = usernameFromEmail(email)
+            // Append the last 4 chars of the Clerk ID (e.g., user_2kL...8x9p -> 8x9p)
+            const suffix = data.id.slice(-4);
+
             await db.insert(users).values({
                 clerkId : data.id,
+                username : `${username}_${suffix}`,
                 name : `${data.first_name} ${data.last_name}`,
                 imageUrl : data.image_url,
             })

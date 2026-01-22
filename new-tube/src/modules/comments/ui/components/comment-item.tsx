@@ -1,8 +1,3 @@
-interface CommentItemProps {
-    comment : CommentGetManyOutput["items"][number],
-    variant ?: "reply" | "comment",
-}
-
 import { CommentGetManyOutput } from '../../types'
 import Link from 'next/link'
 import { UserAvatar } from '@/components/user-avatar'
@@ -19,6 +14,11 @@ import { useState } from 'react'
 import CommentForm from './comment-form'
 import { CommentReplies } from './comment-replies'
 
+interface CommentItemProps {
+    comment : CommentGetManyOutput["items"][number],
+    variant ?: "reply" | "comment",
+}
+
 const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
     const {userId} = useAuth();
@@ -28,60 +28,123 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
     const [isReplyOpen, setIsReplyOpen] = useState(false);
     const [isRepliesOpen, setIsRepliesOpen] = useState(false);
+    const [isReplyPending, setIsReplyPending] = useState(false);
 
    
     const remove = trpc.comments.remove.useMutation({
         onMutate: async ({ id }) => {
             // Cancel ongoing fetches
             await utils.comments.getMany.cancel({ videoId : comment.videoId, limit: DEFAULT_LIMIT });
+            if(comment.parentId){
+                await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
+            }
 
             // Snapshot previous cache
-            const previousComments =
+            const previousMain =
             utils.comments.getMany.getInfiniteData({ videoId : comment.videoId, limit: DEFAULT_LIMIT });
+            const previousReplies = comment.parentId ? utils.comments.getMany.getInfiniteData({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT }) : undefined;
 
             const previousTotal =
             utils.comments.getTotal.getData({ videoId : comment.videoId });
 
-            // Optimistically remove comment
-            utils.comments.getMany.setInfiniteData(
-                { videoId : comment.videoId, limit: DEFAULT_LIMIT },
-                (old) => {
-                    if (!old) return old;
-
-                    return {
-                        ...old,
-                        pages: old.pages.map(page => ({
-                            ...page,
-                            items: page.items.filter(comment => comment.id !== id),
-                        })),
-                    };
-                }
-            );
-
+            // Optimistically remove comment and decrement parent replies count if it is a reply
+            let removedParentId : string | null = null;
+            let totalReplies : number = 0;
+            if(comment.parentId){
+                utils.comments.getMany.setInfiniteData(
+                    { videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT },
+                    (old) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            pages: old.pages.map(page => ({
+                                ...page,
+                                items: page.items.filter(comment => {
+                                    if(comment.id === id){
+                                        removedParentId = comment.parentId;
+                                        return false; // remove this comment
+                                    }
+                                    return true;
+                                }),
+                            })),
+                        };
+                    }
+                );
+                //update the replies count
+                utils.comments.getMany.setInfiniteData(
+                    { videoId : comment.videoId, limit: DEFAULT_LIMIT },
+                    (old) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            pages: old.pages.map(page => ({
+                                ...page,
+                                items: page.items.map(comment => {
+                                    if (comment.id === removedParentId) {
+                                        return {
+                                            ...comment,
+                                            replyCount: Math.max(0, comment.replyCount - 1),
+                                        };
+                                    }
+                                    return comment;
+                                }),
+                            })),
+                        };
+                    }
+                );
+            }
+            else{
+                utils.comments.getMany.setInfiniteData(
+                    { videoId : comment.videoId, limit: DEFAULT_LIMIT },
+                    (old) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            pages: old.pages.map(page => ({
+                                ...page,
+                                items: page.items.filter(comment => {
+                                    if(comment.id === id){
+                                        totalReplies = comment.replyCount;
+                                        return false; // remove this comment
+                                    }
+                                    return true;
+                                }),
+                            })),
+                        };
+                    }
+                );
+            }
+            
             // Optimistically update total
             utils.comments.getTotal.setData({ videoId : comment.videoId }, (old) => {
                 if (!old) return old;
-                return { count: old.count - 1 };
+                return { count: comment.parentId ? old.count - 1 :  old.count - (totalReplies) - 1 };
             });
 
-            return { previousComments, previousTotal };
+            return { previousMain, previousReplies, previousTotal };
         },
 
         onError: (_err, _vars, ctx) => {
             // Rollback cache
-            if (ctx?.previousComments) {
+            if (ctx?.previousMain) {
                 utils.comments.getMany.setInfiniteData(
                     { videoId : comment.videoId, limit: DEFAULT_LIMIT },
-                    ctx.previousComments
+                    ctx.previousMain
                 );
             }
-
+            if(ctx?.previousReplies){
+                utils.comments.getMany.setInfiniteData(
+                    { videoId: comment.videoId, parentId : comment.parentId ?? undefined, limit: DEFAULT_LIMIT },
+                    ctx.previousReplies
+                );
+            }
             if (ctx?.previousTotal) {
                 utils.comments.getTotal.setData(
                     { videoId : comment.videoId },
                     ctx.previousTotal
                 );
             }
+            
 
             toast.error("Failed to delete comment");
         },
@@ -105,14 +168,19 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                 videoId: comment.videoId,
                 limit: DEFAULT_LIMIT,
             });
+            
+            if(comment.parentId){
+                await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
+            }
 
-            const previous = utils.comments.getMany.getInfiniteData({
+            const previousMain = utils.comments.getMany.getInfiniteData({
                 videoId: comment.videoId,
                 limit: DEFAULT_LIMIT,
             });
+            const previousReplies = comment.parentId ? utils.comments.getMany.getInfiniteData({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT }) : undefined;
 
             utils.comments.getMany.setInfiniteData(
-                { videoId: comment.videoId, limit: DEFAULT_LIMIT },
+                { videoId: comment.videoId, parentId : comment.parentId ?? undefined, limit: DEFAULT_LIMIT },
                 (old) => {
                     if (!old) return old;
 
@@ -138,14 +206,20 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                 }
             )
 
-            return { previous };
+            return { previousMain, previousReplies };
         },
 
         onError: (_err, _vars, ctx) => {
-            if (ctx?.previous) {
+            if (ctx?.previousMain) {
                 utils.comments.getMany.setInfiniteData(
                     { videoId: comment.videoId, limit: DEFAULT_LIMIT },
-                    ctx.previous
+                    ctx.previousMain
+                );
+            }
+            if(ctx?.previousReplies){
+                utils.comments.getMany.setInfiniteData(
+                    { videoId: comment.videoId, parentId : comment.parentId ?? undefined, limit: DEFAULT_LIMIT },
+                    ctx.previousReplies
                 );
             }
         },
@@ -158,14 +232,19 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                 limit: DEFAULT_LIMIT,
             });
 
-            const previous =
-                utils.comments.getMany.getInfiniteData({
-                    videoId: comment.videoId,
-                    limit: DEFAULT_LIMIT,
-                });
+            if(comment.parentId){
+                await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
+            }
+
+            const previousMain = utils.comments.getMany.getInfiniteData({
+                videoId: comment.videoId,
+                limit: DEFAULT_LIMIT,
+            });
+            const previousReplies = comment.parentId ? utils.comments.getMany.getInfiniteData({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT }) : undefined;
+
 
             utils.comments.getMany.setInfiniteData(
-                { videoId: comment.videoId, limit: DEFAULT_LIMIT },
+                { videoId: comment.videoId, parentId : comment.parentId ?? undefined,  limit: DEFAULT_LIMIT },
                 (old) => {
                     if (!old) return old;
 
@@ -191,14 +270,20 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                 }
             );
 
-            return { previous };
+            return { previousMain, previousReplies };
         },
 
         onError: (_err, _vars, ctx) => {
-            if (ctx?.previous) {
+            if (ctx?.previousMain) {
                 utils.comments.getMany.setInfiniteData(
                     { videoId: comment.videoId, limit: DEFAULT_LIMIT },
-                    ctx.previous
+                    ctx.previousMain
+                );
+            }
+            if(ctx?.previousReplies){
+                utils.comments.getMany.setInfiniteData(
+                    { videoId: comment.videoId, parentId : comment.parentId ?? undefined, limit: DEFAULT_LIMIT },
+                    ctx.previousReplies
                 );
             }
         },
@@ -226,9 +311,9 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
     return (
         <div>
-            <div className="flex gap-4">
+            <div className={`flex ${variant === "comment" ? "gap-4" : "gap-3"}`}>
                 <Link href={`/users/${comment.userId}`}>
-                    <UserAvatar size={"lg"} imageUrl={comment.user.imageUrl} name={comment.user.name} />
+                    <UserAvatar size={variant === "comment" ? "lg" : "sm"} imageUrl={comment.user.imageUrl} name={comment.user.name} />
                 </Link>
                 <div className="flex-1 min-w-0">
                     <div>
@@ -243,7 +328,25 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                             </span>
                         </div>
                     </div> 
-                    <p className="text-sm whitespace-pre-wrap">{comment.value.trim()}</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                        {variant === "reply" && (
+                            comment.replyToUserUsername ? (
+                                <Link
+                                href={`/users/${comment.user.id}`}
+                                className="text-blue-500 hover:underline font-medium"
+                                >
+                                    @{comment.replyToUserUsername}
+                                </Link>
+                            ) : (
+                                <span className="text-gray-400 italic">
+                                    Deleted user
+                                </span>
+                            )
+                        )}
+
+                        {" "}{comment.value.trim()}
+                    </p>
+
                     <div className="flex items-center gap-2 mt-1 -ml-2">
                         <div className="flex items-center">
                             <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending} onClick={() => {handleLike()}}>
@@ -256,12 +359,9 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                             <span className="text-xs text-muted-foreground">{comment.dislikeCount}</span>
                         </div>
 
-                        {variant === "comment" && (
-                            <Button variant={"ghost"} size={"sm"} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
-                                Reply
-                            </Button>
-                        )}
-
+                        <Button variant={"ghost"} size={"sm"} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
+                            Reply
+                        </Button>
                     </div>
                 </div>
                 <DropdownMenu>
@@ -271,14 +371,11 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        {
-                            variant === "comment" && (
+
                                 <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} className="cursor-pointer">
                                     <MessagesSquareIcon className="size-4" />
                                     Reply
                                 </DropdownMenuItem>
-                            )
-                        }
                         {comment.user.clerkId === userId && (
                              <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} className="cursor-pointer">
                                 <Trash2Icon className="size-4" />
@@ -290,13 +387,12 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
             </div>
 
             {
-                isReplyOpen && variant === "comment" && (
-                    <div className="mt-4 ml-14">
-                        <CommentForm videoId={comment.videoId} parentId={comment.id} onCancel={() => setIsReplyOpen(false)} onSuccess={() => {
+                isReplyOpen && (
+                    <div className={`mt-4 ml-14 ${isReplyPending ? "hidden" : "block"}`}>
+                        <CommentForm videoId={comment.videoId} parentId={comment.parentId ? comment.parentId : comment.id} replyToUserId={comment.userId} replyToUserUsername={comment.user.username} onCancel={() => setIsReplyOpen(false)} onSuccess={() => {
                             setIsReplyOpen(false);
-                            setIsRepliesOpen(false);
-                        }} variant='reply'/>
-                    </div>
+                        }} setIsReplyPending={setIsReplyPending}  variant='reply'/>
+                    </div>      
                 )
             }
 
@@ -313,7 +409,7 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                     <div className="pl-14">
                         <Button variant="tertiary" size="sm" className="cursor-pointer" onClick={() => setIsRepliesOpen((current) => !current)}>
                             {isRepliesOpen ? <ChevronUpIcon /> : <ChevronDownIcon />} 
-                            {comment.replyCount} replies
+                            {isRepliesOpen ? "hide replies" : `${comment.replyCount} replies`}
                         </Button>
                     </div>
                 )

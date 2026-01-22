@@ -8,6 +8,7 @@ import { createInsertSchema, createUpdateSchema, createSelectSchema } from "driz
 export const users = pgTable("users", {
     id: uuid("id").primaryKey().defaultRandom(),
     clerkId: text("clerk_id").unique().notNull(),
+    username: text("username").unique().notNull(), // 🔥 NEW (Added Later)
     name: text("name").notNull(),
     //   TODO: add banner fields
     imageUrl: text("image_url").notNull(),
@@ -199,12 +200,21 @@ export const videoReactionSelectSchema = createSelectSchema(videoReactions);
 
 export const comments = pgTable("comments", {
     id : uuid("id").primaryKey().defaultRandom(),
-    parentId : uuid("parent_id"),
     userId : uuid("user_id").references(() => users.id, { onDelete : "cascade"}).notNull(),
     videoId : uuid("video_id").references(() => videos.id, { onDelete : "cascade"}).notNull(),
+    parentId : uuid("parent_id"),
+    replyToUserId: uuid("reply_to_user_id").references(() => users.id, { onDelete: "set null" }),
     value : text("value").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at", {
+        precision: 3,
+        withTimezone: true, // 👈 timestamptz
+        mode: "date",
+    }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", {
+        precision: 3,
+        withTimezone: true,
+        mode: "date",
+     }).notNull().defaultNow(),
 }, (t) => [
     foreignKey({
         columns : [t.parentId],

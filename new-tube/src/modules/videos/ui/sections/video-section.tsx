@@ -62,7 +62,7 @@ const VideoSectionSuspense = ({ videoId } : VideoSectionProps) => {
 export const VideoSection = ({ videoId } : VideoSectionProps) => {
     return (
         <Suspense fallback={<VideoSectionSkeleton />}>
-            <ErrorBoundary fallback ={<p>Error..</p>}>
+            <ErrorBoundary fallback ={<p>Error..video</p>}>
                 <VideoSectionSuspense videoId={videoId} />
             </ErrorBoundary>
         </Suspense>

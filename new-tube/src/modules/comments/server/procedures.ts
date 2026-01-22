@@ -2,20 +2,23 @@ import { db } from "@/db";
 import { commentInsertSchema, commentReactions, comments, users } from "@/db/schema";
 import { baseProcedure, createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, getTableColumns, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import z from "zod";
 
 
-
 export const commentsRouter = createTRPCRouter({
+
+    //this also remaning update, replytousername, replytouserid
     create : protectedProcedure
         .input(z.object({
             videoId : z.uuid(),
             parentId : z.uuid().nullish(),
+            replyToUserId : z.uuid().nullish(),
             value : z.string(),
         }))
         .mutation(async ({ input, ctx }) => {
-            const { videoId, parentId, value } = input;
+            const { videoId, parentId, replyToUserId, value } = input;
             const { id : userId } = ctx.user;
 
             const [existingComment] = await db.select().from(comments).where(inArray(comments.id, parentId ? [parentId] : []));
@@ -24,13 +27,9 @@ export const commentsRouter = createTRPCRouter({
                 throw new TRPCError({ code : "NOT_FOUND" });
             }
 
-            if(existingComment?.parentId && parentId){
-                throw new TRPCError({ code : "BAD_REQUEST" });
-            }
-
             const trimmedValue = value.trim();
 
-            const [createdComment] = await db.insert(comments).values({userId, videoId, parentId, value : trimmedValue}).returning();
+            const [createdComment] = await db.insert(comments).values({userId, videoId, parentId, replyToUserId, value : trimmedValue}).returning();
             return createdComment;
         }),
 
@@ -66,10 +65,10 @@ export const commentsRouter = createTRPCRouter({
     getMany : baseProcedure
         .input(z.object({
             videoId : z.uuid(),
-            parentId : z.uuid().nullish(),
+            parentId : z.uuid().optional(),
             cursor : z.object({
                 id : z.uuid(),
-                updatedAt : z.date(),
+                createdAt : z.date(),
             }).nullish(),
 
             limit : z.number().min(1).max(100),
@@ -94,6 +93,12 @@ export const commentsRouter = createTRPCRouter({
                 .from(commentReactions)
                 .where(inArray(commentReactions.userId, userId ? [userId] : []))
             )
+            const replyToUsers = alias(users, "reply_to_users");
+            const isAscending = !!parentId; 
+
+            const orderByClause = isAscending 
+                ? [asc(comments.createdAt), asc(comments.id)] 
+                : [desc(comments.createdAt), desc(comments.id)];
 
 
             const data = await db.with(viewerReactions).select({
@@ -103,8 +108,7 @@ export const commentsRouter = createTRPCRouter({
                         SELECT COUNT(*)
                         FROM ${comments} AS replies
                         WHERE replies.parent_id = ${comments.id}
-                    )
-                `,
+                    )`.mapWith(Number),
                 likeCount : db.$count(
                     commentReactions,
                     and(
@@ -125,11 +129,15 @@ export const commentsRouter = createTRPCRouter({
                     name : users.name,
                     imageUrl : users.imageUrl,
                     clerkId : users.clerkId,
-                }
+                    username : users.username,
+                },
+                replyToUserUsername: replyToUsers.username, 
+                replyToUserId: replyToUsers.id, // Optional: useful for client-side routing
             })
             .from(comments)
             .innerJoin(users, eq(comments.userId, users.id))
             .leftJoin(viewerReactions, eq(comments.id, viewerReactions.commentId))
+            .leftJoin(replyToUsers, eq(comments.replyToUserId, replyToUsers.id))
             .where(
                 and(
                     eq(comments.videoId, videoId),
@@ -139,24 +147,34 @@ export const commentsRouter = createTRPCRouter({
                         : 
                             isNull(comments.parentId), 
                     cursor
-                        ? or(
-                                lt(comments.updatedAt, cursor.updatedAt),
-                                and(
-                                    eq(comments.updatedAt, cursor.updatedAt),
-                                    lt(comments.id, cursor.id)
+                        ? isAscending
+                            // CHILD COMMENTS (ASC)
+                            ? or(
+                                    gt(comments.createdAt, cursor.createdAt),
+                                    and(
+                                        eq(comments.createdAt, cursor.createdAt),
+                                        gt(comments.id, cursor.id)
+                                    )
                                 )
-                            )
-                        : undefined
+                            // TOP-LEVEL COMMENTS (DESC)
+                            : or(
+                                    lt(comments.createdAt, cursor.createdAt),
+                                    and(
+                                        eq(comments.createdAt, cursor.createdAt),
+                                        lt(comments.id, cursor.id)
+                                    )
+                                )
+                    : undefined
                 )
             )
-            .orderBy(desc(comments.updatedAt), desc(comments.id))
+            .orderBy(...orderByClause)
             .limit(limit + 1);
 
             // Determine if there's a next page
             const hasMore = data.length > limit;
             const items = hasMore ? data.slice(0, -1) : data;
             const lastItem = items[items.length - 1];
-            const nextCursor = hasMore ? {id : lastItem.id, updatedAt : lastItem.updatedAt} : null;
+            const nextCursor = hasMore ? {id : lastItem.id, createdAt : lastItem.createdAt} : null;
             
             return {
                 items,
