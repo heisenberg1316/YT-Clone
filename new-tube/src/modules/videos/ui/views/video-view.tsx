@@ -17,12 +17,12 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
   return (
     // 1. Reduced max-width slightly to match YT's "comfort zone" 
     // 2. Added 2xl:px-24 for better whitespace on massive screens
-    <div className="flex justify-center mx-auto max-w-[1700px] pt-4 px-4 lg:px-6 mb-10">
+    <div className="flex mx-auto max-w-[2500px] pt-4 px-4 lg:px-6 mb-10">
       <div className={`flex flex-col ${open ? "" : "justify-center"} xl:flex-row w-full gap-x-6`}>
         
         {/* LEFT SIDE: Video & Comments */}
         {/* We use max-w to prevent the video from becoming too tall on ultra-wide screens */}
-        <div className="flex-1 min-w-0 max-w-full xl:max-w-[calc(100%-400px)]">
+        <div className="flex-1 min-w-0 max-w-full xl:max-w-[calc(100%-33%)]">
           <div className="w-full">
              <VideoSection videoId={videoId} />
           </div>
