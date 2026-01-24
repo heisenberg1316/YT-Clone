@@ -274,7 +274,6 @@ const CommentForm = ({ videoId, parentId, replyToUserUsername, replyToUserId, on
             clerk.openSignIn();
             return;
         }
-        console.log("clicked submit")
         create.mutate(values);
     }
 

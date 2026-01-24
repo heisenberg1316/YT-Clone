@@ -349,17 +349,17 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
                     <div className="flex items-center gap-2 mt-1 -ml-2">
                         <div className="flex items-center">
-                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending} onClick={() => {handleLike()}}>
+                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending || comment.id.includes("temp")} onClick={() => {handleLike()}}>
                                 <ThumbsUpIcon className={cn(comment.viewerReaction==="like" && "fill-black")}/>
                             </Button>
                             <span className="text-xs text-muted-foreground mr-0.5">{comment.likeCount}</span>
-                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={dislike.isPending || like.isPending} onClick={() => {handleDislike()}}>
+                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={dislike.isPending || like.isPending || comment.id.includes("temp")}  onClick={() => {handleDislike()}}>
                                 <ThumbsDownIcon className={cn(comment.viewerReaction==="dislike" && "fill-black")}/>
                             </Button>
                             <span className="text-xs text-muted-foreground">{comment.dislikeCount}</span>
                         </div>
 
-                        <Button variant={"ghost"} size={"sm"} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
+                        <Button variant={"ghost"} size={"sm"} disabled={comment.id.includes("temp")} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
                             Reply
                         </Button>
                     </div>
@@ -371,13 +371,12 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-
-                                <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} disabled={comment.id.includes("temp")} className="cursor-pointer">
                                     <MessagesSquareIcon className="size-4" />
                                     Reply
                                 </DropdownMenuItem>
                         {comment.user.clerkId === userId && (
-                             <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} className="cursor-pointer">
+                             <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} disabled={comment.id.includes("temp")} className="cursor-pointer">
                                 <Trash2Icon className="size-4" />
                                 Delete
                             </DropdownMenuItem>
