@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 
-export default function Error({ error, reset }: { error: Error; reset: () => void }) {
+export default function Error({ error }: { error: Error }) {
   
   // Custom UI for specific server errors (if message is passed)
   const isPrivate = error.message === "PRIVATE_VIDEO";
@@ -22,7 +22,7 @@ export default function Error({ error, reset }: { error: Error; reset: () => voi
       <p className="text-muted-foreground mb-5 max-w-sm">
         {isPrivate 
           ? "You don't have permission to view this content. Please sign in with an authorized account." 
-          : "We encountered an error while trying to load this video or you have send the wrong id. Please try again later."}
+          : "We encountered an error while trying to load this video. Please try again later."}
       </p>
 
       <div className="flex gap-4">

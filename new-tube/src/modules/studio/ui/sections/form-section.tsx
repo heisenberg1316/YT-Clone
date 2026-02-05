@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { APP_URL } from "@/constants";
 
 
 
@@ -153,7 +154,7 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
         }
     );
     const [categories] = trpc.categories.getMany.useSuspenseQuery();
-    const fullUrl = `${process.env.VERCEL_URL || "http://localhost:3000"}/videos/${videoId}`;
+    const fullUrl = `${APP_URL || "http://localhost:3000"}/videos/${videoId}`;
     const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const [generatingType, setGeneratingType] = useState<"title" | "description" | null>(null);
@@ -225,6 +226,25 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
         },
     });
 
+    const revalidate = trpc.videos.revalidate.useMutation({
+        onSuccess : () => {
+            utils.studio.getMany.invalidate();
+            utils.studio.getOne.invalidate({ id : videoId });
+            toast.success("Video revalidated successfully", {
+                icon: <Check className="text-green-500" />, // change color here
+                duration: 3000,
+                cancel: {
+                    label: "Close",
+                    onClick: () => {},
+                }
+            })
+        },
+        onError : (err) => {
+            toast.error("Error while revalidating the video");
+        },
+    });
+
+
     const restoreThumbnail = trpc.videos.restoreThumbnail.useMutation({
         onSuccess : () => {
             utils.studio.getMany.invalidate();
@@ -288,7 +308,11 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="mr-2 mt-0.5">
-                                    <DropdownMenuItem className="cursor-pointer" onClick={() => remove.mutate({ id : videoId })}>
+                                     <DropdownMenuItem className="cursor-pointer" disabled={revalidate.isPending} onClick={() => revalidate.mutate({ id : videoId })}>
+                                        <RotateCcwIcon className="size-4 mr-2"/>
+                                        Revalidate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer" disabled={remove.isPending}  onClick={() => remove.mutate({ id : videoId })}>
                                         <TrashIcon className="size-4 mr-2"/>
                                         Delete
                                     </DropdownMenuItem>
@@ -455,7 +479,7 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
                         </div>
 
                         <div className="flex flex-col gap-y-8 lg:col-span-2">
-                            <div className="flex flex-col gap-2 bg-[#F9F9F9] rounded-xl overflow-hidden h-fit">
+                            <div className="flex flex-col gap-2 bg-secondary rounded-xl overflow-hidden h-fit">
                                 <div className="aspect-video overflow-hidden relative">
                                     <VideoPlayer playbackId={video.muxPlaybackId} thumbnailUrl={video.thumbnailUrl}  />
                                 </div>

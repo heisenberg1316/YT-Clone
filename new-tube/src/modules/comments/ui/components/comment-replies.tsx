@@ -25,6 +25,7 @@ export const CommentReplies = ({ parentId, videoId }: CommentRepliesProps) => {
         isFetchingNextPage,
     } = trpc.comments.getMany.useInfiniteQuery(
         { limit: DEFAULT_LIMIT, videoId, parentId },
+        
         {
             getNextPageParam: (lastPage) => lastPage.nextCursor,
         }

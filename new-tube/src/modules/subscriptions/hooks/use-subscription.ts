@@ -1,6 +1,6 @@
 import { SUCCESS_TOAST_CONFIG } from "@/toastCustom";
 import { trpc } from "@/trpc/client";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 
@@ -15,6 +15,7 @@ interface UseSubscriptionProps {
 export const useSubscription = ({ userId, isSubscribed, fromVideoId} : UseSubscriptionProps) => {
     const clerk = useClerk();
     const utils = trpc.useUtils();
+    const {user} = useUser();
 
     const subscribe = trpc.subscriptions.create.useMutation({
         onSuccess : () => {
@@ -50,6 +51,10 @@ export const useSubscription = ({ userId, isSubscribed, fromVideoId} : UseSubscr
     const isPending = subscribe.isPending || unsubscribe.isPending;
 
     const onClick = () => {
+        if(!user){
+            clerk.openSignIn();
+            return;
+        }
         if(isSubscribed){
             unsubscribe.mutate({ userId });
         }
@@ -57,7 +62,6 @@ export const useSubscription = ({ userId, isSubscribed, fromVideoId} : UseSubscr
             subscribe.mutate({ userId })
         }
     }
-
     return {
         isPending,
         onClick,

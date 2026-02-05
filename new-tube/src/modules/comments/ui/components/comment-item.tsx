@@ -163,15 +163,16 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
     const like = trpc.commentReactions.like.useMutation({
         onMutate : async ({ commentId }) => {
-
-            await utils.comments.getMany.cancel({
-                videoId: comment.videoId,
-                limit: DEFAULT_LIMIT,
-            });
+            //not needed to cancel ongoing comment requests
             
-            if(comment.parentId){
-                await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
-            }
+            // await utils.comments.getMany.cancel({
+            //     videoId: comment.videoId,
+            //     limit: DEFAULT_LIMIT,
+            // });
+            
+            // if(comment.parentId){
+            //     await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
+            // }
 
             const previousMain = utils.comments.getMany.getInfiniteData({
                 videoId: comment.videoId,
@@ -227,14 +228,16 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
     const dislike = trpc.commentReactions.dislike.useMutation({
         onMutate: async ({ commentId }) => {
-            await utils.comments.getMany.cancel({
-                videoId: comment.videoId,
-                limit: DEFAULT_LIMIT,
-            });
+            //not needed to cancel ongoing comment requests
 
-            if(comment.parentId){
-                await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
-            }
+            // await utils.comments.getMany.cancel({
+            //     videoId: comment.videoId,
+            //     limit: DEFAULT_LIMIT,
+            // });
+
+            // if(comment.parentId){
+            //     await utils.comments.getMany.cancel({ videoId : comment.videoId, parentId : comment.parentId, limit: DEFAULT_LIMIT });
+            // }
 
             const previousMain = utils.comments.getMany.getInfiniteData({
                 videoId: comment.videoId,
@@ -308,10 +311,12 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
         dislike.mutate({ commentId : comment.id });
     };
 
+    const isTemp = comment.id.includes("temp");
+
 
     return (
         <div>
-            <div className={`flex ${variant === "comment" ? "gap-4" : "gap-3"}`}>
+            <div className={`flex ${variant === "comment" ? "gap-4" : "gap-3"} ${isTemp ? "animate-pulse" : ""}`}>
                 <Link href={`/users/${comment.userId}`}>
                     <UserAvatar size={variant === "comment" ? "lg" : "sm"} imageUrl={comment.user.imageUrl} name={comment.user.name} />
                 </Link>
@@ -349,34 +354,34 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
 
                     <div className="flex items-center gap-2 mt-1 -ml-2">
                         <div className="flex items-center">
-                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending || comment.id.includes("temp")} onClick={() => {handleLike()}}>
-                                <ThumbsUpIcon className={cn(comment.viewerReaction==="like" && "fill-black")}/>
+                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending || isTemp} onClick={() => {handleLike()}}>
+                                <ThumbsUpIcon className={cn(comment.viewerReaction==="like" && "fill-current")}/>
                             </Button>
                             <span className="text-xs text-muted-foreground mr-0.5">{comment.likeCount}</span>
-                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={dislike.isPending || like.isPending || comment.id.includes("temp")}  onClick={() => {handleDislike()}}>
-                                <ThumbsDownIcon className={cn(comment.viewerReaction==="dislike" && "fill-black")}/>
+                            <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={dislike.isPending || like.isPending || isTemp}  onClick={() => {handleDislike()}}>
+                                <ThumbsDownIcon className={cn(comment.viewerReaction==="dislike" && "fill-current")}/>
                             </Button>
                             <span className="text-xs text-muted-foreground">{comment.dislikeCount}</span>
                         </div>
 
-                        <Button variant={"ghost"} size={"sm"} disabled={comment.id.includes("temp")} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
+                        <Button variant={"ghost"} size={"sm"} disabled={isTemp} className="h-8 cursor-pointer" onClick={() => {setIsReplyOpen(!isReplyOpen)}}>
                             Reply
                         </Button>
                     </div>
                 </div>
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                     <DropdownMenuTrigger>
                         <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
                             <MoreVerticalIcon />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} disabled={comment.id.includes("temp")} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} disabled={isTemp} className="cursor-pointer">
                                     <MessagesSquareIcon className="size-4" />
                                     Reply
                                 </DropdownMenuItem>
                         {comment.user.clerkId === userId && (
-                             <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} disabled={comment.id.includes("temp")} className="cursor-pointer">
+                             <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} disabled={isTemp} className="cursor-pointer">
                                 <Trash2Icon className="size-4" />
                                 Delete
                             </DropdownMenuItem>
@@ -406,7 +411,7 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
             {
                 comment.replyCount > 0 && variant === "comment" && (
                     <div className="pl-14">
-                        <Button variant="tertiary" size="sm" className="cursor-pointer" onClick={() => setIsRepliesOpen((current) => !current)}>
+                        <Button variant="tertiary" size="sm" className="cursor-pointer" disabled={isReplyPending} onClick={() => setIsRepliesOpen((current) => !current)}>
                             {isRepliesOpen ? <ChevronUpIcon /> : <ChevronDownIcon />} 
                             {isRepliesOpen ? "hide replies" : `${comment.replyCount} replies`}
                         </Button>

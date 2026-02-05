@@ -113,13 +113,13 @@ export const VideoReactions = ({ videoId } : videoReactionsProps) => {
 
     return (
         <div className="flex items-center flex-none">
-            <Button onClick={() => {handleLike()}} disabled={like.isPending || dislike.isPending} variant="secondary" className="cursor-pointer hover:bg-gray-200 rounded-l-full rounded-r-none gap-2 pr-4">
-                <ThumbsUpIcon className={cn("size-5", video.viewerReaction === "like" && "fill-black")} />
+            <Button onClick={() => {handleLike()}} disabled={like.isPending || dislike.isPending} variant="secondary" className="cursor-pointer hover:bg-ring rounded-l-full rounded-r-none gap-2 pr-4">
+                <ThumbsUpIcon className={cn("size-5", video.viewerReaction === "like" && "fill-current")} />
                 {video.likeCount}
             </Button>
             <Separator orientation="vertical"/>
-            <Button onClick={() => {handleDislike()}} disabled={like.isPending || dislike.isPending}  variant="secondary" className="cursor-pointer hover:bg-gray-200 rounded-l-none rounded-r-full pl-3">
-                <ThumbsDownIcon className={cn("size-5", video.viewerReaction === "dislike" && "fill-black")}/>
+            <Button onClick={() => {handleDislike()}} disabled={like.isPending || dislike.isPending}  variant="secondary" className="cursor-pointer hover:bg-ring rounded-l-none rounded-r-full pl-3">
+                <ThumbsDownIcon className={cn("size-5", video.viewerReaction === "dislike" && "fill-current")}/>
                 {video.dislikeCount}
             </Button>
         </div>

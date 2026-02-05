@@ -33,9 +33,9 @@ export const PersonalSection = () => {
 
     return (
         <SidebarGroup>
-            <SidebarGroupLabel>You</SidebarGroupLabel>
+            <SidebarGroupLabel className="2xl:text-base 2xl:mb-2">You</SidebarGroupLabel>
             <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="2xl:gap-2 gap-0.5">
                     {
                         items.map((item) => (
                             <SidebarMenuItem key={item.title}>
@@ -51,8 +51,8 @@ export const PersonalSection = () => {
                                     }}
                                 >
                                     <Link href={item.url} className="flex items-center gap-4">
-                                        <item.icon />
-                                        <span className="text-sm">{item.title}</span>
+                                        <item.icon className="size-4! 2xl:size-4.5!"/>
+                                        <span className="text-sm 2xl:text-base">{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
 

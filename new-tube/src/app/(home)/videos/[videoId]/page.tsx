@@ -22,6 +22,7 @@ const Page = async ({ params }: PageProps) => {
             trpc.videos.getOne.prefetch({ id: videoId }),
             trpc.comments.getMany.prefetchInfinite({ videoId, limit: DEFAULT_LIMIT }),
             trpc.comments.getTotal.prefetch({ videoId }),
+            trpc.suggestions.getMany.prefetchInfinite({ videoId, limit : DEFAULT_LIMIT }),
         ]);
 
     } catch (error: any) {
@@ -30,8 +31,7 @@ const Page = async ({ params }: PageProps) => {
          */
         const isNotFound = 
             error.code === "NOT_FOUND" || 
-            error.cause?.code === "NOT_FOUND" ||
-            error.shape?.code === -32004; // -32004 is the JSON-RPC code for Not Found
+            error.code === "BAD_REQUEST";            
 
         if (isNotFound) {
             return notFound();

@@ -11,7 +11,6 @@
 /* ::-webkit-scrollbar-track-piece{
   width: 2px;
   height: 1px;
-
 } */
 
 
@@ -47,6 +46,7 @@ mux-player::part(poster) {
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-background: var(--muted-background);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
@@ -76,6 +76,7 @@ mux-player::part(poster) {
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
+  --muted-background : oklch(33.78% 0.00138 15.7);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -94,7 +95,7 @@ mux-player::part(poster) {
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(80.789% 0.00447 16.119);
 }
 
 .dark {
@@ -110,6 +111,7 @@ mux-player::part(poster) {
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
+  --muted-background : oklch(91.974% 0.00541 16.192);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);

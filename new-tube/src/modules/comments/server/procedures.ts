@@ -41,7 +41,6 @@ export const commentsRouter = createTRPCRouter({
             const { id } = input;
             const { id : userId } = ctx.user;
 
-
             const [deletedComment] = await db.delete(comments).where(and(eq(comments.id, id), eq(comments.userId, userId))).returning();
 
             if(!deletedComment){

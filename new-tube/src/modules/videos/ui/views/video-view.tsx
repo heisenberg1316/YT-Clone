@@ -17,7 +17,7 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
   return (
     // 1. Reduced max-width slightly to match YT's "comfort zone" 
     // 2. Added 2xl:px-24 for better whitespace on massive screens
-    <div className="flex mx-auto max-w-[2500px] pt-4 px-4 lg:px-6 mb-10">
+    <div className="flex mx-auto max-w-[2500px] overflow-x-hidden pt-4 px-4 mb-10">
       <div className={`flex flex-col ${open ? "" : "justify-center"} xl:flex-row w-full gap-x-6`}>
         
         {/* LEFT SIDE: Video & Comments */}
@@ -29,7 +29,7 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
 
           {/* Mobile Suggestions (Only visible below XL) */}
           <div className="xl:hidden block mt-6">
-            <SuggestionsSection />
+            <SuggestionsSection videoId={videoId} isManual />
           </div>
 
           <div className="mt-4">
@@ -39,8 +39,8 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
 
         {/* RIGHT SIDE: Suggestions Sidebar */}
         {/* Fixed width (350px) ensures zoom doesn't crush it */}
-        <aside className="hidden xl:block w-[350px] border-2 shrink-0">
-          <SuggestionsSection />
+        <aside className="hidden xl:block w-[350px] 2xl:w-[420px] border-2 shrink-0">
+          <SuggestionsSection videoId={videoId}/>
         </aside>
 
       </div>

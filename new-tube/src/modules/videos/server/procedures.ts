@@ -90,6 +90,71 @@ export const videosRouter = createTRPCRouter({
             return removedVideo;
         }),
 
+    revalidate : protectedProcedure
+        .input(z.object({ id : z.uuid()}))
+        .mutation(async ({ ctx, input }) => {
+            const { id : userId } = ctx.user;
+
+            const [existingVideo] = await db.select({
+                id: videos.id,
+                muxUploadId: videos.muxUploadId,
+                muxStatus: videos.muxStatus,
+                muxPlaybackId: videos.muxPlaybackId,
+            }).from(videos).where(
+                and(
+                    eq(videos.id, input.id),
+                    eq(videos.userId, userId),
+                )   
+            );
+
+            if(!existingVideo){
+                throw new TRPCError({ code : "NOT_FOUND" });
+            }
+
+            if(!existingVideo.muxUploadId){
+                throw new TRPCError({ code : "BAD_REQUEST" });
+            }
+
+             // 🚀 early exit
+            if (existingVideo.muxStatus === "ready" && existingVideo.muxPlaybackId) {
+                return existingVideo;
+            }
+
+            const directUpload = await mux.video.uploads.retrieve(
+                existingVideo.muxUploadId 
+            )
+
+            if(!directUpload || !directUpload.asset_id){
+                throw new TRPCError({ code : "BAD_REQUEST" });
+            }
+
+            const asset = await mux.video.assets.retrieve(
+                directUpload.asset_id
+            );
+
+            if(!asset){
+                throw new TRPCError({ code : "BAD_REQUEST" });
+            }
+
+            const playbackId = asset.playback_ids?.[0].id;
+            const duration = asset.duration ? Math.round(asset.duration * 1000) : 0;
+
+            const [updatedVideo] = await db.update(videos).set({
+                muxStatus : asset.status,
+                muxPlaybackId : playbackId,
+                muxAssetId : asset.id,
+                duration,
+            })
+            .where((
+                and(
+                    eq(videos.id, input.id),
+                    eq(videos.userId, userId),
+                )
+            ))
+            .returning();
+            return updatedVideo;
+        }),
+
     restoreThumbnail : protectedProcedure
         .input(z.object({ id : z.uuid() }))
         .mutation(async ({ ctx, input}) => {
@@ -251,6 +316,5 @@ export const videosRouter = createTRPCRouter({
 
             return existingVideo;
         })
-
     
 }) 

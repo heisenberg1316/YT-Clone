@@ -33,7 +33,7 @@ export const MainSection = () => {
     return (
         <SidebarGroup>
             <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5 2xl:gap-2.5">
                     {
                         items.map((item) => (
                             <SidebarMenuItem key={item.title}>
@@ -49,8 +49,8 @@ export const MainSection = () => {
                                     }}
                                 >
                                     <Link href={item.url} className="flex items-center gap-4">
-                                        <item.icon />
-                                        <span className="text-sm">{item.title}</span>
+                                        <item.icon className="size-4! 2xl:size-4.5!"/>
+                                        <span className="text-sm 2xl:text-base">{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
 
