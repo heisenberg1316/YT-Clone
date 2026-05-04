@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { users, videoReactions, videos, videoViews } from "@/db/schema";
+import { users, videoReactions, videos, videoStats, videoViews } from "@/db/schema";
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, eq, lt, or, desc, ilike, getTableColumns } from "drizzle-orm";
@@ -21,26 +21,21 @@ export const searchRouter = createTRPCRouter({
         )
         .query(async ({ input }) => {
             const { cursor, limit, query, categoryId } = input;
-
             // Fetch one extra item to determine whether there's a next page
             const data = await db
                     .select({
                         ...getTableColumns(videos),
                         user : users,
-                        viewCount : db.$count(videoViews, eq(videoViews.videoId, videos.id)),
-                        likeCount : db.$count(videoReactions, and(
-                            eq(videoReactions.videoId, videos.id),
-                            eq(videoReactions.type, "like"))
-                        ),
-                        dislikeCount : db.$count(videoReactions, and(
-                            eq(videoReactions.videoId, videos.id),
-                            eq(videoReactions.type, "dislike"))
-                        ),
+                        viewCount : videoStats.viewCount,
+                        likeCount : videoStats.likeCount,
+                        dislikeCount : videoStats.dislikeCount,
                     }) 
                     .from(videos)
                     .innerJoin(users, eq(videos.userId, users.id))
+                    .innerJoin(videoStats, eq(videoStats.videoId, videos.id))
                     .where(
                         and(
+                            eq(videos.visibility, "public"),
                             ilike(videos.title, `%${query}%`),
                             categoryId ? eq(videos.categoryId, categoryId) : undefined,
                             // If cursor is provided, apply the cursor boundary:

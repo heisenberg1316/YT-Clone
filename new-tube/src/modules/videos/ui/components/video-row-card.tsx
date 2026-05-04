@@ -28,7 +28,7 @@ const thumbnailVariants = cva("relative flex-none", {
     variants : {
         size : {
             default : "w-[36%]",
-            compact : "w-[168px]",
+            compact : "w-[198px]",
         },
     },
     defaultVariants : {
@@ -39,6 +39,7 @@ const thumbnailVariants = cva("relative flex-none", {
 interface VideoRowCardProps extends VariantProps<typeof videoRowCardVariants>{
     data : VideoGetManyOutput["items"][number];
     onRemove ?: () => void;
+    isRemoving?: boolean;
 }
 
 interface VideoRowCardSkeletonProps extends VariantProps<typeof videoRowCardVariants> {}
@@ -98,7 +99,7 @@ export const VideoRowCardSkeleton = ({ size = "default" }: VideoRowCardSkeletonP
 };
 
 
-export const VideoRowCard = ({ data, size = "default", onRemove } : VideoRowCardProps) => {
+export const VideoRowCard = ({ data, size = "default", onRemove, isRemoving } : VideoRowCardProps) => {
 
     const compactViews = useMemo(() => {
         return Intl.NumberFormat("en", {
@@ -114,13 +115,13 @@ export const VideoRowCard = ({ data, size = "default", onRemove } : VideoRowCard
 
     return (
         <div className={videoRowCardVariants({ size })}>
-            <Link href={`/videos/${data.id}`} className={thumbnailVariants({ size })} >
+            <Link prefetch href={`/videos/${data.id}`} className={thumbnailVariants({ size })} >
                 <VideoThumbnail imageUrl={data.thumbnailUrl} previewUrl={data.previewUrl} title={data.title} duration={data.duration} />
             </Link>
 
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between gap-x-2">
-                    <Link href={`/videos/${data.id}`} className="flex-1 min-w-0">
+                    <Link prefetch href={`/videos/${data.id}`} className="flex-1 min-w-0">
                         <h3 className={cn("font-medium line-clamp-2", size === "compact" ? "text-sm" : "text-base")}>
                             {data.title}
                         </h3>
@@ -161,7 +162,7 @@ export const VideoRowCard = ({ data, size = "default", onRemove } : VideoRowCard
                         }
                     </Link>
                     <div className="flex-none">
-                        <VideoMenu videoId={data.id} onRemove={onRemove} />
+                        <VideoMenu videoId={data.id} onRemove={onRemove} isRemoving={isRemoving} />
                     </div>
                 </div>
             </div>

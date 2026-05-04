@@ -1,10 +1,11 @@
 import { db } from "@/db";
-import { subscriptions, users, videoReactions, videos, videoUpdateSchema, videoViews } from "@/db/schema";
+import { subscriptions, users, videoReactions, videos, videoStats, videoUpdateSchema, videoViews } from "@/db/schema";
+import { extractDominantColorFromUrl } from "@/lib/extractDominantColor";
 import { mux } from "@/lib/mux";
 import { workflow } from "@/lib/workflow";
 import { baseProcedure, createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { and, eq, getTableColumns, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import { UTApi } from "uploadthing/server";
 import z from "zod";
 
@@ -34,14 +35,36 @@ export const videosRouter = createTRPCRouter({
         const [video] = await db.insert(videos).values({
             userId,
             title : "this is the title", 
-            muxStatus : "waiting",
+            muxStatus : upload.status,
             muxUploadId : upload.id,
         }).returning();
+
+        await db.insert(videoStats).values({
+            videoId : video.id,
+            userId : userId,
+            viewCount : 0,
+            likeCount : 0,
+            dislikeCount : 0,
+            commentCount : 0,
+        })
 
         return {
             video : video,
             url : upload.url,
         }
+    }),
+
+    deleteDraft: protectedProcedure
+        .input(
+            z.object({
+            videoId: z.string(),
+            muxUploadId: z.string(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            await db.delete(videos).where(eq(videos.id, input.videoId));
+
+            return { success: true };
     }),
 
     update : protectedProcedure
@@ -74,20 +97,25 @@ export const videosRouter = createTRPCRouter({
         .mutation(async ({ ctx, input}) => {
             const { id : userId } = ctx.user;
 
-            const [removedVideo] = await db.delete(videos).where(
-                and(
-                    eq(videos.id, input.id),
-                    eq(videos.userId, userId),
-                )
-            ).returning();
+            
+            const [video] = await db.select().from(videos).where(and(eq(videos.id, input.id), eq(videos.userId, userId)));
 
-            if(!removedVideo){
-                throw new TRPCError({ code : "NOT_FOUND" });
+            if(!video){
+                throw new TRPCError({ code: "NOT_FOUND" });
             }
 
-            //VERY IMPORTANT :------>       video delete from mux also reamining
 
-            return removedVideo;
+            if (video.muxAssetId) {
+                try {
+                    const muxDeletedVideo = await mux.video.assets.delete(video.muxAssetId);
+                    return muxDeletedVideo;
+                }
+                catch (err) {
+                    console.error("Failed to delete from Mux:", err);
+                    throw new TRPCError({code : "INTERNAL_SERVER_ERROR"});
+                }
+            }
+
         }),
 
     revalidate : protectedProcedure
@@ -115,7 +143,7 @@ export const videosRouter = createTRPCRouter({
                 throw new TRPCError({ code : "BAD_REQUEST" });
             }
 
-             // 🚀 early exit
+            // 🚀 early exit
             if (existingVideo.muxStatus === "ready" && existingVideo.muxPlaybackId) {
                 return existingVideo;
             }
@@ -133,7 +161,7 @@ export const videosRouter = createTRPCRouter({
             );
 
             if(!asset){
-                throw new TRPCError({ code : "BAD_REQUEST" });
+                throw new TRPCError({ code : "BAD_REQUEST" }); 
             }
 
             const playbackId = asset.playback_ids?.[0].id;
@@ -189,8 +217,9 @@ export const videosRouter = createTRPCRouter({
 
 
             const thumbnailUrl = `https://image.mux.com/${existingVideo.muxPlaybackId}/thumbnail.jpg`;
+            const dominantColor = await extractDominantColorFromUrl(thumbnailUrl);
 
-            const [updatedVideo] = await db.update(videos).set({ thumbnailUrl }).where(
+            const [updatedVideo] = await db.update(videos).set({ thumbnailUrl, dominantColor : dominantColor.rgb }).where(
                 and(
                     eq(videos.id, input.id),
                     eq(videos.userId, userId),
@@ -253,68 +282,263 @@ export const videosRouter = createTRPCRouter({
             return workflowRunId;
         }),
 
-    getOne : baseProcedure
-        .input(z.object({ id : z.uuid() }))
+    getOne: baseProcedure
+        .input(z.object({ id: z.uuid() }))
         .query(async ({ input, ctx }) => {
-
             const { clerkUserId } = ctx;
             let userId;
 
-            const [user] = await db.select().from(users).where(inArray(users.clerkId, clerkUserId ? [clerkUserId] : []))
-
-            if(user){
-                userId = user.id;
+            // 1. Get the internal User ID if logged in
+            if (clerkUserId) {
+                const [user] = await db
+                    .select({ id: users.id })
+                    .from(users)
+                    .where(eq(users.clerkId, clerkUserId));
+                userId = user?.id;
             }
 
-            const viewerReactions = db.$with("viewer_reactions").as(
-                db.select({
-                    videoId : videoReactions.videoId,
-                    type : videoReactions.type
-                }).from(videoReactions).where(inArray(videoReactions.userId, userId ? [userId] : []))
-            )
-
-            const viewerSubscriptions = db.$with("viewer_subscriptions").as(
-                db.select().from(subscriptions).where(inArray(subscriptions.viewerId, userId ? [userId] : []))
-            )
-
-            const [existingVideo] = await db.with(viewerReactions, viewerSubscriptions).select({
+            // 2. The Optimized Query
+            const [existingVideo] = await db
+            .select({
+                // Spread Video Data
                 ...getTableColumns(videos),
-                user : {
-                    ...getTableColumns(users),  
-                    subscriberCount : db.$count(subscriptions, eq(subscriptions.creatorId, users.id)),
-                    viewerSubscribed : isNotNull(viewerSubscriptions.viewerId).mapWith(Boolean),
+                
+                // User (Creator) Data
+                user: {
+                    ...getTableColumns(users),
+                    // We still calculate this on fly (unless i add channel_stats table later)
+                    subscriberCount: db.$count(
+                        subscriptions, 
+                        eq(subscriptions.creatorId, users.id)
+                    ),
+                    // Check if CURRENT viewer is subscribed
+                    viewerSubscribed: userId 
+                        ? isNotNull(subscriptions.viewerId).mapWith(Boolean)
+                        : sql<boolean>`false`,
                 },
-                viewCount : db.$count(videoViews, eq(videoViews.videoId, videos.id)),
-                likeCount : db.$count(videoReactions,
-                    and(
-                        eq(videoReactions.videoId, videos.id),
-                        eq(videoReactions.type, "like"),
-                    ),
-                ),
-                dislikeCount : db.$count(videoReactions,
-                    and(
-                        eq(videoReactions.videoId, videos.id),
-                        eq(videoReactions.type, "dislike"),
-                    ),
-                ),
-                viewerReaction : viewerReactions.type,
+                // FAST: Read from the Stats Table (O(1) Lookup)
+                viewCount: videoStats.viewCount,
+                likeCount: videoStats.likeCount,
+                dislikeCount: videoStats.dislikeCount,
+                
+                // Check if CURRENT viewer liked/disliked
+                viewerReaction: userId 
+                    ? videoReactions.type 
+                    : sql<"like" | "dislike" | null>`null`,
             })
             .from(videos)
+            
+            // A. Join the Creator
             .innerJoin(users, eq(videos.userId, users.id))
-            .leftJoin(viewerReactions, eq(viewerReactions.videoId, videos.id))
-            .leftJoin(viewerSubscriptions, eq(viewerSubscriptions.creatorId, users.id))
-            .where(eq(videos.id, input.id))
-            // .groupBy(
-            //     videos.id,
-            //     users.id,
-            //     viewerReactions.type,
-            // )
+            
+            // B. Join the Stats Table (This is the speed boost)
+            .innerJoin(videoStats, eq(videoStats.videoId, videos.id))
+            
+            // C. Join Viewer Interaction (Only matches if userId exists)
+            .leftJoin(videoReactions, and(
+                eq(videoReactions.videoId, videos.id),
+                userId
+                    ? eq(videoReactions.userId, userId)
+                    : sql`false`
+            ))
 
-            if(!existingVideo){
-                throw new TRPCError({ code : "NOT_FOUND" });
-            } 
+            
+            // D. Join Subscription Status (Only matches if userId exists)
+            .leftJoin(subscriptions, and(
+                eq(subscriptions.creatorId, users.id),
+                userId
+                    ? eq(subscriptions.viewerId, userId)
+                    : sql`false`
+            ))
+            
+            .where(eq(videos.id, input.id));
+
+            if (!existingVideo) {
+                throw new TRPCError({ code: "NOT_FOUND" });
+            }
 
             return existingVideo;
-        })
+        }),
+
+    getMany: baseProcedure
+        .input(
+            z.object({
+                categoryId : z.uuid().nullish(),
+                userId : z.uuid().nullish(),
+                cursor: z.object({
+                        id: z.uuid(),
+                        updatedAt: z.date(),
+                    }).nullish(),
+
+                limit: z.number().min(1).max(100), 
+            })
+        ) 
+        .query(async ({ input }) => {
+            const { cursor, limit, categoryId, userId } = input;
+            // Fetch one extra item to determine whether there's a next page
+            const data = await db
+                    .select({
+                        ...getTableColumns(videos),
+                        user : users,
+                        viewCount : videoStats.viewCount,
+                        likeCount : videoStats.likeCount,
+                        dislikeCount : videoStats.dislikeCount,
+                    }) 
+                    .from(videos)
+                    .innerJoin(users, eq(videos.userId, users.id))
+                    .innerJoin(videoStats, eq(videoStats.videoId, videos.id))
+                    .where(
+                        and(
+                            eq(videos.visibility, "public"),
+                            categoryId ? eq(videos.categoryId, categoryId) : undefined,
+                            userId ? eq(videos.userId, userId) : undefined,
+                            // If cursor is provided, apply the cursor boundary:
+                            cursor
+                            ? or(
+                                    lt(videos.updatedAt, cursor.updatedAt),
+                                    and(
+                                        eq(videos.updatedAt, cursor.updatedAt),
+                                        lt(videos.id, cursor.id)
+                                    )
+                                )
+                            : undefined
+                        )
+                    )
+                    .orderBy(desc(videos.updatedAt), desc(videos.id))
+                    .limit(limit + 1);
+
+            // Determine if there's a next page
+            const hasMore = data.length > limit;
+            const items = hasMore ? data.slice(0, -1) : data;
+            const lastItem = items[items.length - 1];
+            const nextCursor = hasMore ? {id : lastItem.id, updatedAt : lastItem.updatedAt} : null;
+
+            return {
+                items,
+                nextCursor,
+            };
+        }),
+
+    getManyTrending : baseProcedure
+        .input(
+            z.object({
+                cursor: z.object({
+                        id: z.uuid(),
+                        viewCount: z.number(),
+                    }).nullish(),
+
+                limit: z.number().min(1).max(100), 
+            })
+        ) 
+        .query(async ({ input }) => {
+            const { cursor, limit } = input;
+            // Fetch one extra item to determine whether there's a next page
+
+            const data = await db
+                    .select({
+                        ...getTableColumns(videos),
+                        user : users,
+                        viewCount : videoStats.viewCount,
+                        likeCount : videoStats.likeCount,
+                        dislikeCount : videoStats.dislikeCount,
+                    }) 
+                    .from(videos)
+                    .innerJoin(users, eq(videos.userId, users.id))
+                    .innerJoin(videoStats, eq(videoStats.videoId, videos.id))
+                    .where(
+                        and(
+                            eq(videos.visibility, "public"),
+                            // If cursor is provided, apply the cursor boundary:
+                            cursor
+                            ? or(
+                                    lt(videoStats.viewCount, cursor.viewCount),
+                                    and(
+                                        eq(videoStats.viewCount, cursor.viewCount),
+                                        lt(videos.id, cursor.id)
+                                    )
+                                )
+                            : undefined
+                        )
+                    )   
+                    .orderBy(desc(videoStats.viewCount), desc(videos.id))
+                    .limit(limit + 1);
+
+            // Determine if there's a next page
+            const hasMore = data.length > limit;
+            const items = hasMore ? data.slice(0, -1) : data;
+            const lastItem = items[items.length - 1];
+            const nextCursor = hasMore ? {id : lastItem.id, viewCount : lastItem.viewCount} : null;
+
+            return {
+                items,
+                nextCursor,
+            };
+        }),
+
+     getManySubscribed : protectedProcedure
+        .input(
+            z.object({
+                cursor: z.object({
+                        id: z.uuid(),
+                        updatedAt: z.date(),
+                    }).nullish(),
+
+                limit: z.number().min(1).max(100), 
+            })
+        ) 
+        .query(async ({ input, ctx }) => {
+            const { cursor, limit } = input;
+            const { id : userId } = ctx.user;
+
+            const viewerSubscriptions = db.$with("viewer_subscriptions").as(
+                db.select({
+                    creatorId : subscriptions.creatorId,
+                })
+                .from(subscriptions)
+                .where(eq(subscriptions.viewerId, userId))
+            )
+
+            // Fetch one extra item to determine whether there's a next page
+            const data = await db.with(viewerSubscriptions)
+                    .select({
+                        ...getTableColumns(videos),
+                        user : users,
+                        viewCount : videoStats.viewCount,
+                        likeCount : videoStats.likeCount,
+                        dislikeCount : videoStats.dislikeCount,
+                    }) 
+                    .from(videos)
+                    .innerJoin(users, eq(videos.userId, users.id))
+                    .innerJoin(viewerSubscriptions, eq(viewerSubscriptions.creatorId, users.id))
+                    .innerJoin(videoStats, eq(videoStats.videoId, videos.id))
+                    .where(
+                        and(
+                            eq(videos.visibility, "public"),
+                            // If cursor is provided, apply the cursor boundary:
+                            cursor
+                            ? or(
+                                    lt(videos.updatedAt, cursor.updatedAt),
+                                    and(
+                                        eq(videos.updatedAt, cursor.updatedAt),
+                                        lt(videos.id, cursor.id)
+                                    )
+                                )
+                            : undefined
+                        )
+                    )
+                    .orderBy(desc(videos.updatedAt), desc(videos.id))
+                    .limit(limit + 1);
+
+            // Determine if there's a next page
+            const hasMore = data.length > limit;
+            const items = hasMore ? data.slice(0, -1) : data;
+            const lastItem = items[items.length - 1];
+            const nextCursor = hasMore ? {id : lastItem.id, updatedAt : lastItem.updatedAt} : null;
+            
+            return {
+                items,
+                nextCursor,
+            };
+        }),
     
 }) 

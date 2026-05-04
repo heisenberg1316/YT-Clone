@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { commentInsertSchema, commentReactions, comments, users } from "@/db/schema";
+import { commentInsertSchema, commentReactions, comments, commentStats, users, videoStats } from "@/db/schema";
 import { baseProcedure, createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, getTableColumns, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -21,18 +21,50 @@ export const commentsRouter = createTRPCRouter({
             const { videoId, parentId, replyToUserId, value } = input;
             const { id : userId } = ctx.user;
 
-            const [existingComment] = await db.select().from(comments).where(inArray(comments.id, parentId ? [parentId] : []));
-            
-            if(!existingComment && parentId){
-                throw new TRPCError({ code : "NOT_FOUND" });
+            try {
+                return await db.transaction(async (tx) => {
+
+                    if(parentId){
+                        const [existingComment] = await tx.select().from(comments).where(eq(comments.id, parentId));
+                        
+                        if(!existingComment && parentId){
+                            throw new TRPCError({ code : "NOT_FOUND", message : "Cannot reply to a non-existent comment" });
+                        }
+                    }
+
+
+                    const trimmedValue = value.trim();
+                    if (!trimmedValue) {
+                        throw new TRPCError({
+                            code: "BAD_REQUEST",
+                            message: "Comment cannot be empty",
+                        });
+                    }
+
+                    const [createdComment] = await tx.insert(comments).values({userId, videoId, parentId, replyToUserId, value : trimmedValue}).returning();
+
+                    await tx.insert(commentStats).values({commentId : createdComment.id, isParent : Boolean(!parentId)});
+                    await tx.update(videoStats).set({ commentCount: sql`${videoStats.commentCount} + 1` }).where(eq(videoStats.videoId, videoId));
+
+                    if(parentId){
+                        await tx.update(commentStats).set({replyCount : sql`${commentStats.replyCount} + 1`}).where(eq(commentStats.commentId, parentId));
+                    }
+
+                   
+                    return createdComment;
+                })
+
             }
-
-            const trimmedValue = value.trim();
-
-            const [createdComment] = await db.insert(comments).values({userId, videoId, parentId, replyToUserId, value : trimmedValue}).returning();
-            return createdComment;
+            catch(err){
+                console.error("❌ comment create error:", err);
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to create the comment",
+                    cause: err,
+                });
+            }
         }),
-
+        
     remove : protectedProcedure
         .input(z.object({
             id : z.uuid(),
@@ -41,15 +73,63 @@ export const commentsRouter = createTRPCRouter({
             const { id } = input;
             const { id : userId } = ctx.user;
 
-            const [deletedComment] = await db.delete(comments).where(and(eq(comments.id, id), eq(comments.userId, userId))).returning();
+            try {
+                return await db.transaction(async (tx) => {
 
-            if(!deletedComment){
-                throw new TRPCError({ code : "NOT_FOUND" });
+                    // 1. Get the comment FIRST
+                    const [existingComment] = await tx.select().from(comments).where(and(eq(comments.id, id), eq(comments.userId, userId)));
+
+                    if (!existingComment) {
+                        throw new TRPCError({ code: "NOT_FOUND" });
+                    }
+
+                    // 2. Get stats BEFORE delete (important)
+                    const [stats] = await tx.select().from(commentStats).where(eq(commentStats.commentId, id));
+
+                    const replyCount = stats?.replyCount ?? 0;
+
+                    // 3. Delete comment (this cascades)
+                    const [deletedComment] = await tx.delete(comments).where(eq(comments.id, id)).returning();
+
+                    // 4. Update counts
+                    if (existingComment.parentId) {
+                        // deleting a reply
+                        await tx.update(commentStats)
+                            .set({
+                                replyCount: sql`GREATEST(reply_count - 1, 0)`
+                            })
+                            .where(eq(commentStats.commentId, existingComment.parentId));
+
+                        await tx.update(videoStats)
+                            .set({
+                                commentCount: sql`GREATEST(comment_count - 1, 0)`
+                            })
+                            .where(eq(videoStats.videoId, existingComment.videoId));
+
+                    } 
+                    else {
+                        // deleting a parent
+                        await tx.update(videoStats)
+                            .set({
+                                commentCount: sql`GREATEST(comment_count - ${1 + replyCount}, 0)`
+                            })
+                            .where(eq(videoStats.videoId, existingComment.videoId));
+                        }
+
+                        return deletedComment;
+                    });
+                }
+            catch (err) {
+                if (err instanceof TRPCError) throw err;
+
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to delete the comment",
+                    cause: err,
+                });
             }
-
-            return deletedComment;
         }),
-    
+        
     getTotal : baseProcedure
         .input(z.object({
             videoId : z.uuid(),
@@ -102,26 +182,9 @@ export const commentsRouter = createTRPCRouter({
 
             const data = await db.with(viewerReactions).select({
                 ...getTableColumns(comments),
-                replyCount: sql<number>`
-                    (
-                        SELECT COUNT(*)
-                        FROM ${comments} AS replies
-                        WHERE replies.parent_id = ${comments.id}
-                    )`.mapWith(Number),
-                likeCount : db.$count(
-                    commentReactions,
-                    and(
-                        eq(commentReactions.type, "like"),
-                        eq(commentReactions.commentId, comments.id),
-                    )
-                ),
-                dislikeCount : db.$count(
-                    commentReactions,
-                    and(
-                        eq(commentReactions.type, "dislike"),
-                        eq(commentReactions.commentId, comments.id),
-                    )
-                ),
+                replyCount: commentStats.replyCount,
+                likeCount : commentStats.likeCount,
+                dislikeCount : commentStats.dislikeCount,
                 viewerReaction : viewerReactions.type,
                 user : {
                     id : users.id,
@@ -137,6 +200,7 @@ export const commentsRouter = createTRPCRouter({
             .innerJoin(users, eq(comments.userId, users.id))
             .leftJoin(viewerReactions, eq(comments.id, viewerReactions.commentId))
             .leftJoin(replyToUsers, eq(comments.replyToUserId, replyToUsers.id))
+            .innerJoin(commentStats, eq(commentStats.commentId, comments.id))
             .where(
                 and(
                     eq(comments.videoId, videoId),

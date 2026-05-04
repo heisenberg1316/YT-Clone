@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { mux } from "@/lib/mux";
 import { db } from "@/db";
 import { videos } from "@/db/schema";
+import { extractDominantColorFromUrl } from "@/lib/extractDominantColor";
 
 const SIGNING_SECRET = process.env.MUX_WEBHOOK_SECRET;
 type WebhookEvent = VideoAssetCreatedWebhookEvent | VideoAssetErroredWebhookEvent | VideoAssetReadyWebhookEvent | VideoAssetTrackReadyWebhookEvent | VideoAssetDeletedWebhookEvent;
@@ -66,12 +67,16 @@ export const POST = async (request : Request) => {
             const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
             const previewUrl =  `https://image.mux.com/${playbackId}/animated.gif`
 
+            const dominantColor = await extractDominantColorFromUrl(thumbnailUrl);
+
+
             const duration = data.duration ? Math.round(data.duration * 1000) : 0;
 
             await db.update(videos).set({
                 muxStatus : data.status,
                 muxPlaybackId : playbackId,
                 muxAssetId : data.id,
+                dominantColor : dominantColor.rgb,
                 thumbnailUrl, 
                 previewUrl,
                 duration,
@@ -97,7 +102,6 @@ export const POST = async (request : Request) => {
 
         case "video.asset.deleted": {
             const data = payload.data as VideoAssetDeletedWebhookEvent["data"];
-            console.log("hello from deleting");
 
             if (!data.id) {
                 return new Response("Missing asset ID", { status: 400 });
@@ -134,12 +138,6 @@ export const POST = async (request : Request) => {
 
             break;
         }
-
-
-
-
-
-
 
     } 
 

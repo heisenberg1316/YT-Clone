@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { cache } from "react";
+import { InferSelectModel } from "drizzle-orm";
 import superjson from "superjson";
 
 export const createTRPCContext = cache (async () => {
@@ -23,10 +24,39 @@ const t = initTRPC.context<Context>().create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 export const baseProcedure = t.procedure;
+// 1. Define the User type from your schema to help TS
+type User = InferSelectModel<typeof users>;
 
+export const authedOptionalProcedure = t.procedure.use(async function isAuthedOptional(opts) {
+    const { ctx } = opts;
+
+    // Branch A: Guest (No Clerk ID)
+    if (!ctx.clerkUserId) {
+        return opts.next({
+            ctx: {
+                ...ctx,
+                user: null as User | null, // Explicitly cast to avoid 'never'
+            },
+        });
+    }
+
+    // Branch B: Logged In
+    const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerkId, ctx.clerkUserId))
+        .limit(1);
+
+    return opts.next({
+        ctx: {
+            ...ctx,
+            user: (user || null) as User | null, // Explicitly cast here too
+        },
+    });
+});
 export const protectedProcedure = t.procedure.use(async function isAuthed(opts){
     const {ctx} = opts;
-    
+        
     if(!ctx.clerkUserId){
         throw new TRPCError({ code : "UNAUTHORIZED", message : "Please logged in first" });
     }

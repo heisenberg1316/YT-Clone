@@ -29,6 +29,7 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
     const [isReplyOpen, setIsReplyOpen] = useState(false);
     const [isRepliesOpen, setIsRepliesOpen] = useState(false);
     const [isReplyPending, setIsReplyPending] = useState(false);
+    const [readMoreComment, setReadMoreComment] = useState(false);
 
    
     const remove = trpc.comments.remove.useMutation({
@@ -312,47 +313,85 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
     };
 
     const isTemp = comment.id.includes("temp");
+    const isLong = comment.value.trim().length > 150;
+    const displayText = readMoreComment ? comment.value.trim() : comment.value.trim().slice(0, 150);
 
 
     return (
         <div>
             <div className={`flex ${variant === "comment" ? "gap-4" : "gap-3"} ${isTemp ? "animate-pulse" : ""}`}>
-                <Link href={`/users/${comment.userId}`}>
-                    <UserAvatar size={variant === "comment" ? "lg" : "sm"} imageUrl={comment.user.imageUrl} name={comment.user.name} />
+                <Link prefetch href={`/users/${comment.userId}`}>
+                    <UserAvatar className='mt-1.5' size={variant === "comment" ? "lg" : "sm"} imageUrl={comment.user.imageUrl} name={comment.user.name} />
                 </Link>
                 <div className="flex-1 min-w-0">
                     <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                            <Link href={`/users/${comment.userId}`} className="font-medium text-sm pb-0.5">
-                                {comment.user.name}
-                            </Link>
-                            <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(comment.updatedAt, {
-                                    addSuffix : true,
-                                })}
-                            </span>
+                        <div className="flex items-center justify-between ">
+                            <div className='flex gap-2'>
+
+                                <Link prefetch href={`/users/${comment.userId}`} className="font-medium text-sm">
+                                    {comment.user.name}
+                                </Link>
+                                <span className="text-xs text-muted-foreground mt-0.5">
+                                    {formatDistanceToNow(comment.updatedAt, {
+                                        addSuffix : true,
+                                    })}
+                                </span>
+                            </div>
+                            <DropdownMenu modal={false}>
+                                <DropdownMenuTrigger>
+                                    <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
+                                        <MoreVerticalIcon />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} disabled={isTemp} className="cursor-pointer">
+                                                <MessagesSquareIcon className="size-4" />
+                                                Reply
+                                            </DropdownMenuItem>
+                                    {comment.user.clerkId === userId && (
+                                        <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} disabled={isTemp} className="cursor-pointer">
+                                            <Trash2Icon className="size-4" />
+                                            Delete
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
+                        
                     </div> 
-                    <p className="text-sm whitespace-pre-wrap">
+                    <p className="text-sm whitespace-pre-wrap -mt-0.5">
                         {variant === "reply" && (
                             comment.replyToUserUsername ? (
-                                <Link
+                                <Link prefetch
                                 href={`/users/${comment.user.id}`}
-                                className="text-blue-500 hover:underline font-medium"
+                                className="text-blue-500 hover:underline font-medium mr-1"
                                 >
                                     @{comment.replyToUserUsername}
                                 </Link>
                             ) : (
-                                <span className="text-gray-400 italic">
+                                <span className="text-gray-400 italic mr-1">
                                     Deleted user
                                 </span>
                             )
                         )}
 
-                        {" "}{comment.value.trim()}
+                        {displayText}
+                        {!readMoreComment && isLong && "..."}
+
+                        <div>
+                            {isLong && (
+                                <Button
+                                    className="text-gray-500 bg-white hover:bg-white cursor-pointer hover:underline px-0 py-0 -mb-2"
+                                    onClick={() => setReadMoreComment(!readMoreComment)}
+                                >
+                                    {readMoreComment ? "Show less" : "Read more"}
+                                </Button>
+                            )}
+                        </div>
+
                     </p>
 
-                    <div className="flex items-center gap-2 mt-1 -ml-2">
+                    <div className="flex items-center gap-2 -ml-2">
                         <div className="flex items-center">
                             <Button className="size-8 cursor-pointer rounded-full" size="icon" variant="ghost" disabled={like.isPending || dislike.isPending || isTemp} onClick={() => {handleLike()}}>
                                 <ThumbsUpIcon className={cn(comment.viewerReaction==="like" && "fill-current")}/>
@@ -369,25 +408,7 @@ const CommentItem = ({ comment, variant = "comment" } : CommentItemProps) => {
                         </Button>
                     </div>
                 </div>
-                <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger>
-                        <Button variant="ghost" size="icon" className="size-8 cursor-pointer">
-                            <MoreVerticalIcon />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {setIsReplyOpen(!isReplyOpen)}} disabled={isTemp} className="cursor-pointer">
-                                    <MessagesSquareIcon className="size-4" />
-                                    Reply
-                                </DropdownMenuItem>
-                        {comment.user.clerkId === userId && (
-                             <DropdownMenuItem onClick={() => {remove.mutate({ id : comment.id})}} disabled={isTemp} className="cursor-pointer">
-                                <Trash2Icon className="size-4" />
-                                Delete
-                            </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                
             </div>
 
             {

@@ -1,9 +1,10 @@
 "use client";
 
 import { FilterCarousel } from "@/components/filter-carousel";
+import { DEFAULT_LIMIT } from "@/constants";
 import { trpc } from "@/trpc/client";
-import { useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 interface CategoriesSectionProps {
@@ -33,20 +34,23 @@ const CategoriesSectionSuspense = ({ categoryId } : CategoriesSectionProps) => {
         value : category.id,
         label : category.name,
     }))
+    const utils = trpc.useUtils();
 
-    const onSelect = (value : string | null) => {
+
+    const onSelect = async (value : string | null) => {
         const url = new URL(window.location.href);
+        
         if(value){
             url.searchParams.set("categoryId", value);
         }
         else{
             url.searchParams.delete("categoryId");
         }
-
         router.push(url.toString());
+
     }
 
     return (
-        <FilterCarousel onSelect={onSelect} value={categoryId}  data={data}/>
+        <FilterCarousel onSelect={onSelect} value={categoryId}  data={data}  />
     )
 }

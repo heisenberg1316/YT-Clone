@@ -4,6 +4,8 @@ import { Badge } from "./ui/badge";
 import { Carousel, CarouselApi, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
+import { useSidebar } from "./ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FilterCarouselProps {
     value ?: string | null;
@@ -20,6 +22,8 @@ export const FilterCarousel = ({ value, isLoading, onSelect, data } : FilterCaro
     const [api, setApi] = useState<CarouselApi>();
     const [current, setCurrent] = useState(0);
     const [count, setCount] = useState(0);
+    const {open} = useSidebar();
+    const isMobile = useIsMobile()
 
     useEffect(() => {
         if(!api) return;
@@ -33,7 +37,7 @@ export const FilterCarousel = ({ value, isLoading, onSelect, data } : FilterCaro
     }, [api])
 
     return (
-        <div className="relative w-full -mt-1">
+        <div className={`fixed top-17 ${(!isMobile && open) ? "left-62" : "left-14.5"} ${isMobile ? "-ml-9.5" : "ml-0"} pb-2  right-4 bg-background z-50 -mt-1`}>
 
             {/* left fade */}
             <div className={cn(

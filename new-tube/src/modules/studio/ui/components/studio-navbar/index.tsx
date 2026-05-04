@@ -5,6 +5,7 @@ import Link from "next/link"
 import AuthButton from "@/modules/auth/ui/components/auth-button"
 import { StudioUploadModal } from "../studio-upload-modal"
 import { useTheme } from "@/context/theme-context"
+import { Moon, Sun } from "lucide-react"
 
 
 export const StudioNavbar = () => {
@@ -15,7 +16,7 @@ export const StudioNavbar = () => {
           {/* Menu and Logo */}
           <div className="flex items-center shrink-0">
             <SidebarTrigger className="cursor-pointer"/>
-            <Link href="/studio">
+            <Link prefetch href="/studio">
               <div className="p-4 flex items-center gap-1">
                 <Image src="/logo.svg" alt="Logo" width={32} height={32} />
                 <p className="text-xl font-semibold tracking-tight">Studio</p>
@@ -27,7 +28,7 @@ export const StudioNavbar = () => {
           {/* <div className="flex-1"/> */} 
 
           <div className="flex items-center gap-4 shrink-0">
-            <button onClick={toggleTheme} className="text-2xl cursor-pointer">{theme === "dark" ? "☀️" : "🌙"}</button>
+            <button onClick={toggleTheme} className="text-2xl cursor-pointer">{theme === "dark"  ?  <Sun /> : <Moon />}</button>
             <StudioUploadModal />
             <AuthButton />
           </div>

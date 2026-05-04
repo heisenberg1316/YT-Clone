@@ -14,7 +14,7 @@ export default function VideoNotFound() {
         The video you are looking for doesn't exist, has been removed, or the link is incorrect.
       </p>
       <Button asChild variant="default" size="lg">
-        <Link href="/">
+        <Link prefetch href="/">
           Go back home
         </Link>
       </Button>

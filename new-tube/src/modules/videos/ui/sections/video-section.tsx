@@ -25,32 +25,13 @@ const VideoSectionSkeleton = () => {
 
 const VideoSectionSuspense = ({ videoId } : VideoSectionProps) => {
 
-    const { isSignedIn } = useAuth();
     const utils = trpc.useUtils();
     const [video] = trpc.videos.getOne.useSuspenseQuery({ id : videoId });
-    const hasCountedViewRef = useRef(false);
-    const createView = trpc.videoViews.create.useMutation({
-        onSuccess : () => {
-            utils.videos.getOne.invalidate({ id : videoId });
-        }
-    });
-
-    const handlePlay = () => {
-        if(!isSignedIn) return;
-        
-         // ⛔ already counted → do nothing
-        if (hasCountedViewRef.current) return;
-
-        // ✅ first valid play
-        hasCountedViewRef.current = true;
-
-        createView.mutate({ videoId })
-    }
     
     return (
         <>
-            <div className={cn("aspect-video bg-black rounded-xl overflow-hidden relative", video.muxStatus !== "ready" && "rounded-b-none")}>
-                <VideoPlayer  onPlay={handlePlay} playbackId={video.muxPlaybackId} thumbnailUrl={video.thumbnailUrl} />
+            <div className={cn("aspect-video bg-black rounded-xl overflow-hidden  relative", video.muxStatus !== "ready" && "rounded-b-none")}>
+                <VideoPlayer autoPlay={true} videoId={videoId} playbackId={video.muxPlaybackId} thumbnailUrl={video.thumbnailUrl} duration={video.duration} />
             </div>
             <VideoBanner status={video.muxStatus}/>
             <VideoTopRow video={video}/>

@@ -13,8 +13,8 @@ interface PageProps {
 
 const Page = async ({ searchParams } : PageProps) => {
     const { query, categoryId } = await searchParams;
-    await trpc.categories.getMany.prefetch();
-    await trpc.search.getMany.prefetchInfinite({
+    void trpc.categories.getMany.prefetch();
+    void trpc.search.getMany.prefetchInfinite({
         query,
         categoryId,
         limit : DEFAULT_LIMIT,

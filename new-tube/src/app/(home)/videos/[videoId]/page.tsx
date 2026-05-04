@@ -3,6 +3,7 @@ import { VideoView } from "@/modules/videos/ui/views/video-view";
 import { HydrateClient, trpc } from "@/trpc/server";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
 
 interface PageProps {
     params : Promise<{
@@ -13,16 +14,15 @@ interface PageProps {
 const Page = async ({ params }: PageProps) => {
     const { videoId } = await params;
 
-    try {
-        // 1. Try to fetch the data
-        await trpc.videos.getOne({ id: videoId });
-        
-        // 2. Hydrate the client if video exists
+    try {        
+        //to check exists or not
+        let result = await trpc.videos.getOne({ id: videoId });
+    
         await Promise.all([
             trpc.videos.getOne.prefetch({ id: videoId }),
             trpc.comments.getMany.prefetchInfinite({ videoId, limit: DEFAULT_LIMIT }),
             trpc.comments.getTotal.prefetch({ videoId }),
-            trpc.suggestions.getMany.prefetchInfinite({ videoId, limit : DEFAULT_LIMIT }),
+            trpc.suggestions.getMany.prefetchInfinite({ videoId, limit: DEFAULT_LIMIT }),
         ]);
 
     } catch (error: any) {

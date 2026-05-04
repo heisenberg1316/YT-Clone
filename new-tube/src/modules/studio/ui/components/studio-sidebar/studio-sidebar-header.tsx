@@ -42,7 +42,7 @@ const StudioSidebarHeader = () => {
             className={`${avatarSizeClass} py-0 ${state != "collapsed" ? "rounded-full" : ""}  flex justify-center transtition-all duration-450 `}
             asChild
             >
-            <Link href={"/users/current"} className="p-0">
+            <Link prefetch href={"/users/current"} className="p-0">
                 <UserAvatar
                 imageUrl={user?.imageUrl}
                 name={user?.fullName ?? "User"}

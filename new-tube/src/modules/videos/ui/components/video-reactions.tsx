@@ -17,7 +17,6 @@ export const VideoReactions = ({ videoId } : videoReactionsProps) => {
     const {user} = useUser();
     const { data: video } = trpc.videos.getOne.useQuery(
         { id: videoId },
-        { staleTime: Infinity }
     );
 
     if (!video) return null;
@@ -44,6 +43,10 @@ export const VideoReactions = ({ videoId } : videoReactionsProps) => {
             });
 
             return { previous };
+        },
+
+        onSuccess : () => {
+            utils.playlists.getLiked.invalidate();
         },
 
         onError: (err, _, ctx) => {
@@ -79,6 +82,10 @@ export const VideoReactions = ({ videoId } : videoReactionsProps) => {
             });
 
             return { previous };
+        },
+
+        onSuccess : () => {
+            utils.playlists.getLiked.invalidate();
         },
 
         onError: (err, _, ctx) => {

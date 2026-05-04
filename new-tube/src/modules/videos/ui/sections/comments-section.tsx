@@ -5,7 +5,7 @@ import { DEFAULT_LIMIT } from "@/constants";
 import CommentForm from "@/modules/comments/ui/components/comment-form";
 import CommentItem from "@/modules/comments/ui/components/comment-item";
 import { trpc } from "@/trpc/client";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, LoaderCircle } from "lucide-react";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
@@ -15,7 +15,7 @@ interface CommentsSectionProps{
 
 export const CommentsSection = ({ videoId } : CommentsSectionProps) => {
     return (
-        <Suspense fallback={<CommentSectionSkeleton />}>
+        <Suspense fallback={<CommentSectionSkeleton />} >
             <ErrorBoundary fallback={<p>error...comments</p>}>
                 <CommentsSectionSuspense videoId={videoId} />
             </ErrorBoundary>
@@ -24,8 +24,9 @@ export const CommentsSection = ({ videoId } : CommentsSectionProps) => {
 }
 
 const CommentSectionSkeleton = () => {
+    //loading y scrollbar issue
     return (
-        <div className="mt-6 flex justify-center items-center">
+        <div className="mt-6 flex justify-center items-center mb-5">
             <Loader2Icon className="text-muted-foreground size-7 animate-spin"/>
         </div>
     )

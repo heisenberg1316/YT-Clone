@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { users, videos } from "@/db/schema";
+import { extractDominantColorFromUrl } from "@/lib/extractDominantColor";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
@@ -54,17 +55,53 @@ export const ourFileRouter = {
           return { user, ...input};
       })
       .onUploadComplete(async ({ metadata, file }) => {
-          await db.update(videos).set({
-              thumbnailUrl : file.ufsUrl,
-              thumbnailKey : file.key,
-          })
-          .where(
-              and(
-                  eq(videos.id, metadata.videoId),
-                  eq(videos.userId, metadata.user.id),
-          ))
+            const dominantColor = await extractDominantColorFromUrl(file.ufsUrl);
+            await db.update(videos).set({
+                thumbnailUrl : file.ufsUrl,
+                thumbnailKey : file.key,
+                dominantColor : dominantColor.rgb,
+            })
+            .where(
+                and(
+                    eq(videos.id, metadata.videoId),
+                    eq(videos.userId, metadata.user.id),
+            ))
 
-          return { uploadedBy : metadata.user.id };
+            return { uploadedBy : metadata.user.id };
+      }),
+      bannerUploader: f({
+        image: {
+          maxFileSize: "4MB",
+          maxFileCount: 1,
+        },
+    })
+      .middleware(async ({  }) => {
+          const { userId : clerkUserId } = await auth();
+
+          if (!clerkUserId) throw new UploadThingError("Unauthorized");
+
+          const [existingUser] = await db.select().from(users).where(eq(users.clerkId, clerkUserId));
+
+          if(!existingUser) throw new UploadThingError("Unauthorized");
+
+          if(existingUser.bannerKey){
+              const utapi = new UTApi();
+
+              await utapi.deleteFiles(existingUser.bannerKey);
+              await db.update(users).set({bannerKey : null, bannerUrl : null}).where(eq(users.id, existingUser.id));
+          }
+
+          
+          return { userId : existingUser.id };
+      })
+      .onUploadComplete(async ({ metadata, file }) => {
+            await db.update(users).set({
+                bannerUrl : file.ufsUrl,
+                bannerKey : file.key,
+            })
+            .where(eq(users.id, metadata.userId))
+
+            return { uploadedBy : metadata.userId };
       }),
 } satisfies FileRouter;
 

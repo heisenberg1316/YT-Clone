@@ -22,7 +22,7 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
         
         {/* LEFT SIDE: Video & Comments */}
         {/* We use max-w to prevent the video from becoming too tall on ultra-wide screens */}
-        <div className="flex-1 min-w-0 max-w-full xl:max-w-[calc(100%-33%)]">
+        <div className="flex-1 min-w-0 max-w-full xl:max-w-[calc(100%-36%)]">
           <div className="w-full">
              <VideoSection videoId={videoId} />
           </div>
@@ -39,7 +39,7 @@ export const VideoView = ({ videoId }: VideoViewProps) => {
 
         {/* RIGHT SIDE: Suggestions Sidebar */}
         {/* Fixed width (350px) ensures zoom doesn't crush it */}
-        <aside className="hidden xl:block w-[350px] 2xl:w-[420px] border-2 shrink-0">
+        <aside className="hidden xl:block w-[440px] 2xl:w-[490px] shrink-0">
           <SuggestionsSection videoId={videoId}/>
         </aside>
 

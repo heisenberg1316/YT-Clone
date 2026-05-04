@@ -3,5 +3,4 @@ import { AppRouter } from "@/trpc/routers/_app";
 
 export type VideoGetOneOutput = inferRouterOutputs<AppRouter>["videos"]["getOne"];
 
-// todo: change it to videos from suggestions
-export type VideoGetManyOutput = inferRouterOutputs<AppRouter>["suggestions"]["getMany"];
+export type VideoGetManyOutput = inferRouterOutputs<AppRouter>["videos"]["getMany"];

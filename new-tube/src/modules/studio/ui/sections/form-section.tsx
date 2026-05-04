@@ -102,7 +102,7 @@ const FormSectionSkeleton = () => {
 const FormSectionError = () => {
     return (
          <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3 text-center">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold ">
                 Video doesn’t exist
             </h2>
 
@@ -154,7 +154,7 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
         }
     );
     const [categories] = trpc.categories.getMany.useSuspenseQuery();
-    const fullUrl = `${APP_URL || "http://localhost:3000"}/videos/${videoId}`;
+    const fullUrl = `${APP_URL}/videos/${videoId}`;
     const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const [generatingType, setGeneratingType] = useState<"title" | "description" | null>(null);
@@ -481,14 +481,14 @@ const FormSectionSuspense = ({ videoId } :  FormSectionProps) => {
                         <div className="flex flex-col gap-y-8 lg:col-span-2">
                             <div className="flex flex-col gap-2 bg-secondary rounded-xl overflow-hidden h-fit">
                                 <div className="aspect-video overflow-hidden relative">
-                                    <VideoPlayer playbackId={video.muxPlaybackId} thumbnailUrl={video.thumbnailUrl}  />
+                                    <VideoPlayer videoId={video.id} playbackId={video.muxPlaybackId} thumbnailUrl={video.thumbnailUrl} duration={video.duration}  />
                                 </div>
                                 <div className="py-4 px-3 flex flex-col gap-y-3">
                                     <div className="flex justify-between items-center gap-x-2">
                                         <div className="flex flex-col gap-y-1">
                                             <p className="text-muted-foreground text-xs">Video link</p>
                                             <div className="flex items-center gap-x-2">
-                                                <Link href={`/videos/${video.id}`}>
+                                                <Link prefetch href={`/videos/${video.id}`}>
                                                     <p className="line-clamp-2 break-all text-sm text-blue-500">
                                                         {fullUrl}
                                                     </p>

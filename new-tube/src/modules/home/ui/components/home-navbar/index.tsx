@@ -6,20 +6,7 @@ import SearchInput from "./search-input"
 import AuthButton from "@/modules/auth/ui/components/auth-button"
 import { useState } from "react";
 import { useTheme } from "@/context/theme-context";
-import { Button } from "@/components/ui/button";
-import { ArrowBigUpDash, ArrowLeft, SearchIcon } from "lucide-react";
-
-export function toggleTheme() {
-  const root = document.documentElement;
-  const isDark = root.classList.contains("dark");
-
-  const nextTheme = isDark ? "light" : "dark";
-
-  root.classList.toggle("dark", nextTheme === "dark");
-
-  document.cookie = `theme=${nextTheme}; path=/; max-age=31536000`;
-  return nextTheme;
-}
+import { ArrowLeft, Moon, MoonIcon, MoonStar, SearchIcon, Sun, SunDim, SunIcon, SunMoon } from "lucide-react";
 
 export const HomeNavbar = () => {
     const { theme, toggleTheme } = useTheme();
@@ -27,7 +14,7 @@ export const HomeNavbar = () => {
 
     return (
       <nav className="fixed top-0 left-0 right-0 bg-background h-16 flex items-center px-2 pr-5 z-50">
-        <div className="flex items-center gap-4 w-full justify-between">
+        <div className="flex items-center gap-2 w-full justify-between">
           {/* Menu and Logo */}
           <div className="flex items-center shrink-0">
             {
@@ -42,10 +29,10 @@ export const HomeNavbar = () => {
             }
             {
               !open && 
-              <Link href="/">
-                <div className="p-4 flex items-center gap-1">
+              <Link prefetch href="/">
+                <div className="p-2 sm:p-4 flex items-center gap-1">
                   <Image src="/logo.svg" alt="Logo" width={32} height={32} />
-                  <p className="text-xs md:text-lg lg:text-xl font-semibold tracking-tight">NewTube</p>
+                  <p className="hidden sm:block text-sm md:text-lg lg:text-xl font-semibold tracking-tight">NewTube</p>
                 </div>
               </Link>
             }
@@ -68,9 +55,9 @@ export const HomeNavbar = () => {
               (
                 <>
                   <button className="sm:hidden cursor-pointer" onClick={() => setOpen((value) => !value)}>
-                    <SearchIcon className="size-7"/>
+                    <SearchIcon className="size-6"/>
                   </button>
-                  <button onClick={toggleTheme} className="text-2xl cursor-pointer">{theme === "dark" ? "☀️" : "🌙"}</button>
+                  <button onClick={toggleTheme} className="text-xl cursor-pointer">{theme === "dark" ?  <Sun /> : <Moon />}</button>
                   <AuthButton />
                 </>
               )

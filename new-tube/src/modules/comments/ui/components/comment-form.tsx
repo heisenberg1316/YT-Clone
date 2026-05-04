@@ -59,9 +59,7 @@ const CommentForm = ({ videoId, parentId, replyToUserUsername, replyToUserId, on
             let tempId = `temp-${crypto.randomUUID()}`;
 
             if(parentId){
-                console.log("setisreplypending is ", setIsReplyPending);
                 if(setIsReplyPending){
-                    console.log("inside true");
                     setIsReplyPending(true);
                 }
                 utils.comments.getMany.setInfiniteData(

@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
       {
         protocol : "https",
         hostname : "p26ygsik1d.ufs.sh"
+      },
+      {
+        protocol : "https",
+        hostname : "i.ytimg.com",
       }
     ],
   },
