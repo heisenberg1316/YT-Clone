@@ -78,7 +78,7 @@ export const UserPageInfo = ({ user }: UserPageInfoProps) => {
                     className="w-full mt-3 rounded-full"
                     asChild
                 >
-                    <Link prefetch prefetch href="/studio">
+                    <Link prefetch href="/studio">
                     Go to studio
                     </Link>
                 </Button>
@@ -115,7 +115,7 @@ export const UserPageInfo = ({ user }: UserPageInfoProps) => {
                 </div>
                 { userId === user.clerkId ? (
                     <Button variant="secondary" className="mt-3 rounded-full" asChild>
-                    <Link prefetch prefetch href="/studio">
+                    <Link prefetch href="/studio">
                         Go to studio
                     </Link>
                     </Button>
