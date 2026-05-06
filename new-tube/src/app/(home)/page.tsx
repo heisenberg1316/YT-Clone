@@ -12,11 +12,9 @@ interface PageProps {
 
 const Page = async ({ searchParams } : PageProps) => {
     const { categoryId } = await searchParams;
-    await Promise.all([
-        trpc.categories.getMany.prefetch(),
-        trpc.subscriptions.getMany.prefetchInfinite({ limit: DEFAULT_LIMIT }),
-        trpc.videos.getMany.prefetchInfinite({ categoryId, limit: DEFAULT_LIMIT }),
-    ]);
+    void trpc.categories.getMany.prefetch();
+    void trpc.subscriptions.getMany.prefetchInfinite({ limit: DEFAULT_LIMIT });
+    void trpc.videos.getMany.prefetchInfinite({ categoryId, limit: DEFAULT_LIMIT });
 
     return (
       <HydrateClient>
