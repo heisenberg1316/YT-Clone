@@ -6,7 +6,7 @@ A full-stack YouTube clone built with modern web technologies, focused on perfor
 
 ## 🚀 Tech Stack
 
-* **Framework:** Next.js 15 + React 19
+* **Framework:** Next.js 16 + React 19
 * **Runtime:** Bun
 * **Database:** PostgreSQL + Drizzle ORM
 * **API Layer:** tRPC
