@@ -19,10 +19,7 @@ export async function POST(req: NextRequest) {
         // For this guide, log payload to console
         const data = evt.data
         const eventType = evt.type
-        
-        console.log(`Received webhook with ID ${data.id} and event type of ${eventType}`)
-        console.log('Webhook payload:', evt.data)
-        
+                
         if(eventType === "user.created"){
             console.log("user created");
             const { data } = evt;

@@ -11,27 +11,20 @@ type WebhookEvent = VideoAssetCreatedWebhookEvent | VideoAssetErroredWebhookEven
 
 export const POST = async (request : Request) => {
 
-    console.log("inside post request")
-
     if(!SIGNING_SECRET){
         throw new Error("MUX_WEBHOOK_SECRET is not set");
     }
 
     const headersPayload = await headers();
     const muxSignature = headersPayload.get("mux-signature");
-
-    console.log("get mux signature");
     
     if(!muxSignature){
         return new Response ("No signature found", { status : 401 });
     }
+    
+    const payload = await request.json();
+    const body = JSON.stringify(payload);
 
-    const body = await request.text();
-
-
-    console.log("before verify signnature");
-
-    console.log("signing secret is ", SIGNING_SECRET);
     
     mux.webhooks.verifySignature(
         body,
@@ -41,8 +34,6 @@ export const POST = async (request : Request) => {
         SIGNING_SECRET,
     );
     
-    console.log("after verify signnature");
-    const payload = JSON.parse(body);
 
     switch(payload.type as WebhookEvent["type"]){
         case "video.asset.created" : {
@@ -118,13 +109,10 @@ export const POST = async (request : Request) => {
                 return new Response("Missing asset ID", { status: 400 });
             }
 
-            console.log("data is ", data);
 
             const result = await db
                 .delete(videos)
                 .where(eq(videos.muxAssetId, data.id));
-
-            console.log("inside video deleted ", result);
 
             break;
         }
