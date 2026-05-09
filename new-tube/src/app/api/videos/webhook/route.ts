@@ -30,6 +30,8 @@ export const POST = async (request : Request) => {
 
 
     console.log("before verify signnature");
+
+    console.log("signing secret is ", SIGNING_SECRET);
     
     mux.webhooks.verifySignature(
         body,
