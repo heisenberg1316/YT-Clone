@@ -25,9 +25,9 @@ export const POST = async (request : Request) => {
     if(!muxSignature){
         return new Response ("No signature found", { status : 401 });
     }
-    
-    const payload = await request.json();
-    const body = JSON.stringify(payload);
+
+    const body = await request.text();
+
 
     console.log("before verify signnature");
     
@@ -40,6 +40,7 @@ export const POST = async (request : Request) => {
     );
     
     console.log("after verify signnature");
+    const payload = JSON.parse(body);
 
     switch(payload.type as WebhookEvent["type"]){
         case "video.asset.created" : {
